@@ -125,7 +125,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 .canvas-wrap{width:100%;aspect-ratio:1/1;position:relative;border-radius:14px;overflow:hidden;box-shadow:0 24px 60px -20px rgba(44,40,35,.35);}
 #canvas{width:1080px;height:1080px;position:absolute;top:0;left:0;transform-origin:top left;display:flex;align-items:center;justify-content:center;padding:110px 84px;box-sizing:border-box;background:#F2F0EA;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
 #canvas .veil{position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 80% at 50% 0%,rgba(255,255,255,.07),transparent 60%);}
-#stage{position:relative;z-index:2;width:100%;display:flex;flex-direction:column;}
+#stage{position:relative;z-index:2;width:100%;display:flex;flex-direction:column;-webkit-user-select:none;user-select:none;}
 #heading{font-weight:600;letter-spacing:.005em;font-synthesis:none;line-height:1.3;}
 #subtitle{opacity:.55;font-synthesis:none;line-height:1.35;font-weight:300;}
 #quote{font-family:'Pretendard',sans-serif;font-size:34px;line-height:1.72;letter-spacing:0;color:#2C2823;text-align:left;word-break:keep-all;white-space:pre-wrap;font-weight:300;font-synthesis:none;}
@@ -388,35 +388,56 @@ function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 editor.addEventListener('input',sync);
 editor.addEventListener('paste',e=>{e.preventDefault();const t=(e.clipboardData||window.clipboardData).getData('text/plain');document.execCommand('insertText',false,t);});
 
-/* 형광펜 — 선택영역을 가능한 모든 경로에서 붙잡아 둔다(웹뷰/모바일 대응) */
-let savedRange=null;
-function rangeOk(r){
-  if(!r || r.collapsed) return false;
-  const ca=r.commonAncestorContainer;
-  return ca===editor || editor.contains(ca) || editor.contains(r.startContainer) || editor.contains(r.endContainer);
+/* 형광펜 — 선택을 '문자 위치(offset)'로 저장해 두고, 칠할 때 그 위치로 범위를 새로 만들어 적용한다.
+   (선택 객체가 사라져도 복원되므로 모바일/웹뷰에서도 동작) */
+let selA=-1, selB=-1;
+function textLen(n){if(!n)return 0;if(n.nodeType===3)return n.nodeValue.length;let t=0;n.childNodes&&n.childNodes.forEach(c=>t+=textLen(c));return t;}
+function offsetOf(node,off){
+  let total=0,found=false;
+  (function walk(n){
+    if(found)return;
+    if(n.nodeType===3){ if(n===node){total+=off;found=true;return;} total+=n.nodeValue.length; }
+    else { if(n===node){ for(let i=0;i<off;i++) total+=textLen(n.childNodes[i]); found=true; return; }
+      const kids=n.childNodes; for(let i=0;i<kids.length;i++){ walk(kids[i]); if(found)return; } }
+  })(editor);
+  return found?total:null;
 }
-function grabSel(){
+function rangeFromOffsets(a,b){
+  let pos=0,sN=null,sO=0,eN=null,eO=0;
+  (function walk(n){
+    if(n.nodeType===3){ const len=n.nodeValue.length;
+      if(sN==null && a<=pos+len){sN=n;sO=a-pos;}
+      if(eN==null && b<=pos+len){eN=n;eO=b-pos;}
+      pos+=len;
+    } else { const k=n.childNodes; for(let i=0;i<k.length;i++) walk(k[i]); }
+  })(editor);
+  if(!sN||!eN)return null;
+  try{const r=document.createRange();r.setStart(sN,sO);r.setEnd(eN,eO);return r.collapsed?null:r;}catch(_){return null;}
+}
+function captureOffsets(){
   const s=getSelection();
-  if(s && s.rangeCount){
-    const r=s.getRangeAt(0);
-    if(rangeOk(r)){savedRange=r.cloneRange();return true;}
-  }
-  return false;
+  if(!s||!s.rangeCount)return;
+  const r=s.getRangeAt(0);
+  if(r.collapsed)return;
+  if(!(r.commonAncestorContainer===editor||editor.contains(r.commonAncestorContainer)||editor.contains(r.startContainer)||editor.contains(r.endContainer)))return;
+  const a=offsetOf(r.startContainer,r.startOffset), b=offsetOf(r.endContainer,r.endOffset);
+  if(a==null||b==null||a===b)return;
+  selA=Math.min(a,b); selB=Math.max(a,b);
 }
-document.addEventListener('selectionchange',grabSel);
-['mouseup','keyup','touchend','pointerup','select'].forEach(ev=>editor.addEventListener(ev,grabSel));
+document.addEventListener('selectionchange',captureOffsets);
+['mouseup','keyup','touchend','pointerup','select','input'].forEach(ev=>editor.addEventListener(ev,captureOffsets));
 function getRange(){
   const s=getSelection();
-  if(s && s.rangeCount){const r=s.getRangeAt(0);if(rangeOk(r)) return r;}
-  if(savedRange && !savedRange.collapsed) return savedRange;
+  if(s&&s.rangeCount){const r=s.getRangeAt(0);if(!r.collapsed&&(editor.contains(r.startContainer)||editor.contains(r.endContainer)||r.commonAncestorContainer===editor))return r;}
+  if(selA>=0&&selB>selA){const r=rangeFromOffsets(selA,selB);if(r)return r;}
   return null;
 }
 function flashHint(){
   const h=document.getElementById('hlHint');if(!h)return;
-  const prev=h.textContent;
-  h.textContent='먼저 본문에서 칠할 글자를 드래그해 선택하세요.';
+  const prev=h.dataset.base||h.textContent;h.dataset.base=prev;
+  h.textContent='먼저 “본문” 칸에서 칠할 글자를 드래그해 선택하세요.';
   h.style.color='var(--accent)';h.style.fontWeight='700';
-  clearTimeout(flashHint._t);flashHint._t=setTimeout(()=>{h.style.color='';h.style.fontWeight='';h.textContent=prev;},2000);
+  clearTimeout(flashHint._t);flashHint._t=setTimeout(()=>{h.style.color='';h.style.fontWeight='';h.textContent=prev;},2200);
 }
 function applyHL(color){
   const range=getRange();
@@ -424,21 +445,24 @@ function applyHL(color){
   const m=document.createElement('mark');m.style.background=color;m.style.backgroundColor=color;
   try{range.surroundContents(m);}
   catch(e){try{const frag=range.extractContents();m.appendChild(frag);range.insertNode(m);}catch(_){return;}}
-  try{const sel=getSelection();sel.removeAllRanges();const r=document.createRange();r.selectNodeContents(m);sel.addRange(r);savedRange=r.cloneRange();}catch(_){}
+  selA=selB=-1;
+  try{getSelection().removeAllRanges();}catch(_){}
   sync();
 }
 function clearHL(){
   const range=getRange();
   if(!range){flashHint();return;}
-  const text=range.toString();range.deleteContents();const tn=document.createTextNode(text);range.insertNode(tn);
-  try{const sel=getSelection();sel.removeAllRanges();const r=document.createRange();r.selectNodeContents(tn);sel.addRange(r);savedRange=r.cloneRange();}catch(_){}
+  const text=range.toString();range.deleteContents();range.insertNode(document.createTextNode(text));
+  selA=selB=-1;
+  try{getSelection().removeAllRanges();}catch(_){}
   sync();
 }
-/* 누르는 즉시 실행 — click을 기다리지 않아, 선택이 풀리기 전에 칠해진다(모바일·웹뷰 대응) */
+/* 누르는 즉시 실행 — click을 기다리지 않고, 누르는 순간의 선택을 잡아 바로 칠한다 */
 function actHL(el, fn){
   let busy=false;
   const run=(e)=>{
     if(e.target && e.target.classList && e.target.classList.contains('x')) return;
+    captureOffsets();
     e.preventDefault();
     if(busy) return; busy=true; setTimeout(()=>{busy=false;},350);
     fn();
