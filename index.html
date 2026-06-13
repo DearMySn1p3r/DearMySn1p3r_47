@@ -97,7 +97,7 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--bg);color:va
 input::placeholder,textarea::placeholder{color:var(--faint);}
 textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 .fld{margin-bottom:10px;}
-.editor mark,#quote mark{background-color:inherit;color:inherit;padding:.08em .04em;border-radius:2px;-webkit-box-decoration-break:clone;box-decoration-break:clone;}
+.editor mark,#quote mark{color:inherit;padding:.08em .04em;border-radius:2px;-webkit-box-decoration-break:clone;box-decoration-break:clone;}
 
 .hl-bar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:12px 0 4px;}
 .hl-bar .cap{font-size:.72rem;color:var(--muted);margin-right:2px;}
@@ -245,7 +245,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
         <button class="hl-erase" id="hlErase" title="형광펜 지우기">✕</button>
         <span id="myHlWrap" style="display:inline-flex;gap:7px;flex-wrap:wrap;"></span>
       </div>
-      <div class="hint-sm">강조할 부분을 드래그(모바일은 길게 눌러 선택)한 뒤 색을 누르면 칠해져요. ＋로 색을 저장하면 다음에도 쓸 수 있어요.</div>
+      <div class="hint-sm" id="hlHint">강조할 부분을 드래그(모바일은 길게 눌러 선택)한 뒤 색을 누르면 칠해져요. ＋로 색을 저장하면 다음에도 쓸 수 있어요.</div>
       <div class="attr">
         <input type="text" id="inSrc" oninput="render()" placeholder="출처 · 작품명">
         <input type="text" id="inSpk" oninput="render()" placeholder="화자 · 챕터">
@@ -388,49 +388,75 @@ function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 editor.addEventListener('input',sync);
 editor.addEventListener('paste',e=>{e.preventDefault();const t=(e.clipboardData||window.clipboardData).getData('text/plain');document.execCommand('insertText',false,t);});
 
-/* 형광펜: selectionchange로 본문 선택영역을 항상 추적(모바일 포함) */
+/* 형광펜 — 선택영역을 가능한 모든 경로에서 붙잡아 둔다(웹뷰/모바일 대응) */
 let savedRange=null;
-document.addEventListener('selectionchange',()=>{
+function rangeOk(r){
+  if(!r || r.collapsed) return false;
+  const ca=r.commonAncestorContainer;
+  return ca===editor || editor.contains(ca) || editor.contains(r.startContainer) || editor.contains(r.endContainer);
+}
+function grabSel(){
   const s=getSelection();
-  if(s && s.rangeCount && !s.isCollapsed && editor.contains(s.anchorNode) && editor.contains(s.focusNode)){
-    savedRange=s.getRangeAt(0).cloneRange();
+  if(s && s.rangeCount){
+    const r=s.getRangeAt(0);
+    if(rangeOk(r)){savedRange=r.cloneRange();return true;}
   }
-});
-function activeRange(){
+  return false;
+}
+document.addEventListener('selectionchange',grabSel);
+['mouseup','keyup','touchend','pointerup','select'].forEach(ev=>editor.addEventListener(ev,grabSel));
+function getRange(){
   const s=getSelection();
-  if(s && s.rangeCount && !s.isCollapsed && editor.contains(s.anchorNode) && editor.contains(s.focusNode)) return s.getRangeAt(0);
-  if(savedRange && !savedRange.collapsed && editor.contains(savedRange.commonAncestorContainer)) return savedRange;
+  if(s && s.rangeCount){const r=s.getRangeAt(0);if(rangeOk(r)) return r;}
+  if(savedRange && !savedRange.collapsed) return savedRange;
   return null;
 }
+function flashHint(){
+  const h=document.getElementById('hlHint');if(!h)return;
+  const prev=h.textContent;
+  h.textContent='먼저 본문에서 칠할 글자를 드래그해 선택하세요.';
+  h.style.color='var(--accent)';h.style.fontWeight='700';
+  clearTimeout(flashHint._t);flashHint._t=setTimeout(()=>{h.style.color='';h.style.fontWeight='';h.textContent=prev;},2000);
+}
 function applyHL(color){
-  const range=activeRange();if(!range)return;
-  const m=document.createElement('mark');m.style.backgroundColor=color;
+  const range=getRange();
+  if(!range){flashHint();return;}
+  const m=document.createElement('mark');m.style.background=color;m.style.backgroundColor=color;
   try{range.surroundContents(m);}
-  catch(e){const frag=range.extractContents();m.appendChild(frag);range.insertNode(m);}
-  const sel=getSelection();sel.removeAllRanges();const r=document.createRange();r.selectNodeContents(m);sel.addRange(r);savedRange=r.cloneRange();
+  catch(e){try{const frag=range.extractContents();m.appendChild(frag);range.insertNode(m);}catch(_){return;}}
+  try{const sel=getSelection();sel.removeAllRanges();const r=document.createRange();r.selectNodeContents(m);sel.addRange(r);savedRange=r.cloneRange();}catch(_){}
   sync();
 }
 function clearHL(){
-  const range=activeRange();if(!range)return;
+  const range=getRange();
+  if(!range){flashHint();return;}
   const text=range.toString();range.deleteContents();const tn=document.createTextNode(text);range.insertNode(tn);
-  const sel=getSelection();sel.removeAllRanges();const r=document.createRange();r.selectNodeContents(tn);sel.addRange(r);savedRange=r.cloneRange();
+  try{const sel=getSelection();sel.removeAllRanges();const r=document.createRange();r.selectNodeContents(tn);sel.addRange(r);savedRange=r.cloneRange();}catch(_){}
   sync();
 }
-function bindHL(el,fn){el.addEventListener('mousedown',e=>e.preventDefault());el.addEventListener('click',fn);}
-document.querySelectorAll('.hsw').forEach(b=>bindHL(b,()=>applyHL(b.dataset.c)));
-bindHL(document.getElementById('hlErase'),clearHL);
+/* 누르는 즉시 실행 — click을 기다리지 않아, 선택이 풀리기 전에 칠해진다(모바일·웹뷰 대응) */
+function actHL(el, fn){
+  let busy=false;
+  const run=(e)=>{
+    if(e.target && e.target.classList && e.target.classList.contains('x')) return;
+    e.preventDefault();
+    if(busy) return; busy=true; setTimeout(()=>{busy=false;},350);
+    fn();
+  };
+  el.addEventListener('mousedown',run);
+  el.addEventListener('touchstart',run,{passive:false});
+}
+document.querySelectorAll('.hsw').forEach(b=>actHL(b,()=>applyHL(b.dataset.c)));
+actHL(document.getElementById('hlErase'),clearHL);
 document.getElementById('hlCustom').addEventListener('input',e=>applyHL(e.target.value));
-const hlSave=document.getElementById('hlSaveBtn');
-hlSave.addEventListener('mousedown',e=>e.preventDefault());
-hlSave.addEventListener('click',()=>{const c=document.getElementById('hlCustom').value;if(!myHl.includes(c)){myHl.unshift(c);if(myHl.length>12)myHl.pop();saveLS(LS_HL,myHl);renderMyHl();}});
+actHL(document.getElementById('hlSaveBtn'),()=>{const c=document.getElementById('hlCustom').value;if(!myHl.includes(c)){myHl.unshift(c);if(myHl.length>12)myHl.pop();saveLS(LS_HL,myHl);renderMyHl();}});
 function renderMyHl(){
   const wrap=document.getElementById('myHlWrap');wrap.innerHTML='';
   myHl.forEach((c,i)=>{
     const b=document.createElement('button');b.className='hsv';b.style.background=c;b.title=c;
-    b.addEventListener('mousedown',e=>e.preventDefault());
-    b.addEventListener('click',()=>applyHL(c));
+    actHL(b,()=>applyHL(c));
     const x=document.createElement('button');x.className='x';x.textContent='×';
-    x.addEventListener('mousedown',e=>e.preventDefault());
+    ['mousedown','touchstart'].forEach(ev=>x.addEventListener(ev,e=>e.stopPropagation()));
     x.addEventListener('click',(e)=>{e.stopPropagation();myHl.splice(i,1);saveLS(LS_HL,myHl);renderMyHl();});
     b.appendChild(x);wrap.appendChild(b);
   });
