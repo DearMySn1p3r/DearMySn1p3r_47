@@ -125,10 +125,11 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 .canvas-wrap{width:100%;aspect-ratio:1/1;position:relative;border-radius:14px;overflow:hidden;box-shadow:0 24px 60px -20px rgba(44,40,35,.35);}
 #canvas{width:1080px;height:1080px;position:absolute;top:0;left:0;transform-origin:top left;display:flex;align-items:center;justify-content:center;padding:110px 84px;box-sizing:border-box;background:#F2F0EA;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
 #canvas .veil{position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 80% at 50% 0%,rgba(255,255,255,.07),transparent 60%);}
-#stage{position:relative;z-index:2;width:100%;display:flex;flex-direction:column;-webkit-user-select:none;user-select:none;}
+#stage{position:relative;z-index:2;width:100%;display:flex;flex-direction:column;}
+#heading,#subtitle,#attr{-webkit-user-select:none;user-select:none;}
 #heading{font-weight:600;letter-spacing:.005em;font-synthesis:none;line-height:1.3;}
 #subtitle{opacity:.55;font-synthesis:none;line-height:1.35;font-weight:300;}
-#quote{font-family:'Pretendard',sans-serif;font-size:34px;line-height:1.72;letter-spacing:0;color:#2C2823;text-align:left;word-break:keep-all;white-space:pre-wrap;font-weight:300;font-synthesis:none;}
+#quote{font-family:'Pretendard',sans-serif;font-size:34px;line-height:1.72;letter-spacing:0;color:#2C2823;text-align:left;word-break:keep-all;white-space:pre-wrap;font-weight:300;font-synthesis:none;-webkit-user-select:text;user-select:text;cursor:text;}
 #quote:empty:before{content:'입력한 문구가 여기에 표시됩니다';opacity:.3;}
 #attr{font-size:21px;letter-spacing:.04em;color:#2C2823;opacity:.7;text-align:left;font-synthesis:none;font-weight:300;}
 #attr .sep{margin:0 .5em;opacity:.5;}#attr .dash{opacity:.7;}
@@ -241,11 +242,11 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
         <button class="hsw" style="--c:#C7E0F4" data-c="#C7E0F4" title="블루"></button>
         <button class="hsw" style="--c:#E7CCF5" data-c="#E7CCF5" title="라일락"></button>
         <span class="hl-custom" title="색 직접 지정"><input type="color" id="hlCustom" value="#ffe08a"></span>
-        <button class="chip" id="hlSaveBtn" title="이 색 저장">＋</button>
-        <button class="hl-erase" id="hlErase" title="형광펜 지우기">✕</button>
+        <button class="chip" id="hlSaveBtn" title="이 색 저장">＋ 색</button>
+        <button class="chip" id="hlClearAll" title="형광펜 전부 지우기">전체 지우기</button>
         <span id="myHlWrap" style="display:inline-flex;gap:7px;flex-wrap:wrap;"></span>
       </div>
-      <div class="hint-sm" id="hlHint">강조할 부분을 드래그(모바일은 길게 눌러 선택)한 뒤 색을 누르면 칠해져요. ＋로 색을 저장하면 다음에도 쓸 수 있어요.</div>
+      <div class="hint-sm" id="hlHint">① 칠할 글자를 드래그(오른쪽 미리보기에서 바로 드래그해도 돼요) → 색을 누르면 칠해져요. ② <b>칠해진 부분을 탭하면 지워져요.</b> ③ ＋ 색으로 내 색 저장.</div>
       <div class="attr">
         <input type="text" id="inSrc" oninput="render()" placeholder="출처 · 작품명">
         <input type="text" id="inSpk" oninput="render()" placeholder="화자 · 챕터">
@@ -392,14 +393,14 @@ editor.addEventListener('paste',e=>{e.preventDefault();const t=(e.clipboardData|
    (선택 객체가 사라져도 복원되므로 모바일/웹뷰에서도 동작) */
 let selA=-1, selB=-1;
 function textLen(n){if(!n)return 0;if(n.nodeType===3)return n.nodeValue.length;let t=0;n.childNodes&&n.childNodes.forEach(c=>t+=textLen(c));return t;}
-function offsetOf(node,off){
+function offsetOf(root,node,off){
   let total=0,found=false;
   (function walk(n){
     if(found)return;
     if(n.nodeType===3){ if(n===node){total+=off;found=true;return;} total+=n.nodeValue.length; }
     else { if(n===node){ for(let i=0;i<off;i++) total+=textLen(n.childNodes[i]); found=true; return; }
       const kids=n.childNodes; for(let i=0;i<kids.length;i++){ walk(kids[i]); if(found)return; } }
-  })(editor);
+  })(root);
   return found?total:null;
 }
 function rangeFromOffsets(a,b){
@@ -414,18 +415,23 @@ function rangeFromOffsets(a,b){
   if(!sN||!eN)return null;
   try{const r=document.createRange();r.setStart(sN,sO);r.setEnd(eN,eO);return r.collapsed?null:r;}catch(_){return null;}
 }
+const quoteEl=document.getElementById('quote');
 function captureOffsets(){
   const s=getSelection();
   if(!s||!s.rangeCount)return;
   const r=s.getRangeAt(0);
   if(r.collapsed)return;
-  if(!(r.commonAncestorContainer===editor||editor.contains(r.commonAncestorContainer)||editor.contains(r.startContainer)||editor.contains(r.endContainer)))return;
-  const a=offsetOf(r.startContainer,r.startOffset), b=offsetOf(r.endContainer,r.endOffset);
+  // 본문(에디터) 또는 미리보기(#quote) 어느 쪽 선택이든 받는다 — 둘은 동일한 텍스트라 위치가 같다
+  let root=null;
+  if(r.commonAncestorContainer===editor||editor.contains(r.commonAncestorContainer)) root=editor;
+  else if(r.commonAncestorContainer===quoteEl||quoteEl.contains(r.commonAncestorContainer)) root=quoteEl;
+  if(!root)return;
+  const a=offsetOf(root,r.startContainer,r.startOffset), b=offsetOf(root,r.endContainer,r.endOffset);
   if(a==null||b==null||a===b)return;
   selA=Math.min(a,b); selB=Math.max(a,b);
 }
 document.addEventListener('selectionchange',captureOffsets);
-['mouseup','keyup','touchend','pointerup','select','input'].forEach(ev=>editor.addEventListener(ev,captureOffsets));
+['mouseup','keyup','touchend','pointerup','select','input'].forEach(ev=>{editor.addEventListener(ev,captureOffsets);quoteEl.addEventListener(ev,captureOffsets);});
 function getRange(){
   const s=getSelection();
   if(s&&s.rangeCount){const r=s.getRangeAt(0);if(!r.collapsed&&(editor.contains(r.startContainer)||editor.contains(r.endContainer)||r.commonAncestorContainer===editor))return r;}
@@ -435,7 +441,7 @@ function getRange(){
 function flashHint(){
   const h=document.getElementById('hlHint');if(!h)return;
   const prev=h.dataset.base||h.textContent;h.dataset.base=prev;
-  h.textContent='먼저 “본문” 칸에서 칠할 글자를 드래그해 선택하세요.';
+  h.textContent='칠할 글자를 먼저 드래그해 선택하세요(본문 칸 또는 오른쪽 미리보기).';
   h.style.color='var(--accent)';h.style.fontWeight='700';
   clearTimeout(flashHint._t);flashHint._t=setTimeout(()=>{h.style.color='';h.style.fontWeight='';h.textContent=prev;},2200);
 }
@@ -457,6 +463,22 @@ function clearHL(){
   try{getSelection().removeAllRanges();}catch(_){}
   sync();
 }
+/* 마크(형광펜) 풀기 */
+function unwrapMark(mk){const p=mk.parentNode;if(!p)return;while(mk.firstChild)p.insertBefore(mk.firstChild,mk);p.removeChild(mk);p.normalize&&p.normalize();}
+/* 전체 지우기 */
+function clearAllHL(){editor.querySelectorAll('mark').forEach(unwrapMark);editor.normalize&&editor.normalize();selA=selB=-1;sync();}
+/* 칠해진 부분을 탭하면 그 형광펜만 제거 (본문/미리보기 모두) */
+function removeMarkByEl(mk, listRoot){
+  const list=[...listRoot.querySelectorAll('mark')];
+  const idx=list.indexOf(mk); if(idx<0)return;
+  const em=editor.querySelectorAll('mark'); if(em[idx]){unwrapMark(em[idx]);editor.normalize&&editor.normalize();sync();}
+}
+editor.addEventListener('click',e=>{const mk=e.target&&e.target.closest&&e.target.closest('mark');if(mk&&editor.contains(mk)&&getSelection().isCollapsed){removeMarkByEl(mk,editor);}});
+quoteEl.addEventListener('click',e=>{
+  try{const s=getSelection();if(s&&s.rangeCount&&!s.getRangeAt(0).collapsed)return;}catch(_){}
+  const mk=e.target&&e.target.closest&&e.target.closest('mark');
+  if(mk&&quoteEl.contains(mk)){removeMarkByEl(mk,quoteEl);}
+});
 /* 누르는 즉시 실행 — click을 기다리지 않고, 누르는 순간의 선택을 잡아 바로 칠한다 */
 function actHL(el, fn){
   let busy=false;
@@ -471,7 +493,7 @@ function actHL(el, fn){
   el.addEventListener('touchstart',run,{passive:false});
 }
 document.querySelectorAll('.hsw').forEach(b=>actHL(b,()=>applyHL(b.dataset.c)));
-actHL(document.getElementById('hlErase'),clearHL);
+document.getElementById('hlClearAll').addEventListener('click',clearAllHL);
 document.getElementById('hlCustom').addEventListener('input',e=>applyHL(e.target.value));
 actHL(document.getElementById('hlSaveBtn'),()=>{const c=document.getElementById('hlCustom').value;if(!myHl.includes(c)){myHl.unshift(c);if(myHl.length>12)myHl.pop();saveLS(LS_HL,myHl);renderMyHl();}});
 function renderMyHl(){
