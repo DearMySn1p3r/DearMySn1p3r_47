@@ -99,6 +99,8 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 .fld{margin-bottom:10px;}
 .editor mark{color:inherit;border-radius:3px;padding:0 .02em;}
 #quoteText mark{color:inherit;background:transparent!important;padding:0;}
+#quoteText b,#quoteText strong,.editor b,.editor strong{font-weight:800;}
+#quoteText i,#quoteText em,.editor i,.editor em{font-style:italic;}
 .hlrect{position:absolute;border-radius:3px;pointer-events:none;}
 .editor *{font-size:inherit!important;font-family:inherit!important;line-height:inherit!important;}
 #quoteText *{font-size:inherit!important;font-family:inherit!important;line-height:inherit!important;}
@@ -439,32 +441,38 @@ const hlLayerEl=document.getElementById('hlLayer');
 function sync(){quoteTextEl.innerHTML=editor.innerHTML;renderHL();}
 /* 형광펜 오버레이: 미리보기 텍스트의 mark 위치를 계산해, 글자 높이만큼의 사각형을 글자 뒤에 그린다.
    (줄 간격과 무관하게 높이 고정 + 저장에서도 정확) */
+function markBands(m,base,scale,fs){
+  const rects=[];const cr=m.getClientRects();
+  for(let i=0;i<cr.length;i++){if(cr[i].width>=1)rects.push(cr[i]);}
+  const lines=[];
+  rects.forEach(rc=>{
+    const top=(rc.top-base.top)/scale,h=rc.height/scale,left=(rc.left-base.left)/scale,w=rc.width/scale;
+    const cy=top+h/2;
+    let g=null;for(let j=0;j<lines.length;j++){if(Math.abs(lines[j].cy-cy)<h*0.6){g=lines[j];break;}}
+    if(g){g.left=Math.min(g.left,left);g.right=Math.max(g.right,left+w);g.top=Math.min(g.top,top);g.bottom=Math.max(g.bottom,top+h);}
+    else lines.push({cy:cy,left:left,right:left+w,top:top,bottom:top+h});
+  });
+  return lines.map(L=>{
+    const h=L.bottom-L.top;const bandH=Math.min(fs*1.16,h*0.84);
+    return {left:L.left,top:L.top+(h-bandH)/2,width:L.right-L.left,height:bandH};
+  });
+}
 function renderHL(){
   if(!hlLayerEl||!quoteTextEl)return;
   hlLayerEl.innerHTML='';
   const marks=quoteTextEl.querySelectorAll('mark');
   if(!marks.length)return;
   const canvas=document.getElementById('canvas');
-  const cw=canvas.getBoundingClientRect().width||1080;
-  const scale=cw/1080;
+  const scale=(canvas.getBoundingClientRect().width||1080)/1080;
   const base=quoteTextEl.getBoundingClientRect();
   const fs=state.fontSize;
   marks.forEach(m=>{
     const color=m.getAttribute('data-c')||m.style.backgroundColor||'#FBDDE6';
-    const rects=m.getClientRects();
-    for(let i=0;i<rects.length;i++){
-      const rc=rects[i];if(rc.width<1)continue;
-      const left=(rc.left-base.left)/scale;
-      const top=(rc.top-base.top)/scale;
-      const w=rc.width/scale;
-      const h=rc.height/scale;
-      const bandH=Math.min(fs*1.16, h*0.82);
-      const d=document.createElement('div');
-      d.className='hlrect';
-      d.style.left=left+'px';d.style.top=(top+(h-bandH)/2)+'px';
-      d.style.width=w+'px';d.style.height=bandH+'px';d.style.background=color;
+    markBands(m,base,scale,fs).forEach(B=>{
+      const d=document.createElement('div');d.className='hlrect';
+      d.style.left=B.left+'px';d.style.top=B.top+'px';d.style.width=B.width+'px';d.style.height=B.height+'px';d.style.background=color;
       hlLayerEl.appendChild(d);
-    }
+    });
   });
 }
 function render(){
@@ -608,12 +616,10 @@ quoteTextEl.addEventListener('click',e=>{
   const px=(e.clientX-base.left)/scale, py=(e.clientY-base.top)/scale;
   const fs=state.fontSize;const marks=quoteTextEl.querySelectorAll('mark');
   for(let idx=marks.length-1;idx>=0;idx--){
-    const rects=marks[idx].getClientRects();
-    for(let i=0;i<rects.length;i++){
-      const rc=rects[i];if(rc.width<1)continue;
-      const left=(rc.left-base.left)/scale,top=(rc.top-base.top)/scale,w=rc.width/scale,h=rc.height/scale;
-      const bandH=Math.min(fs*1.16,h*0.82);const t=top+(h-bandH)/2;
-      if(px>=left&&px<=left+w&&py>=t&&py<=t+bandH){removeMarkByIndex(idx);return;}
+    const bands=markBands(marks[idx],base,scale,fs);
+    for(let i=0;i<bands.length;i++){
+      const B=bands[i];
+      if(px>=B.left&&px<=B.left+B.width&&py>=B.top&&py<=B.top+B.height){removeMarkByIndex(idx);return;}
     }
   }
 });
