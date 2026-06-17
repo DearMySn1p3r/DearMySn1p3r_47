@@ -164,7 +164,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
       <div class="seg" id="segSize" style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">
         <button class="on" onclick="setSize('square',this)">정사각형<br><span style="font-size:.62rem;opacity:.6;">1080×1080</span></button>
         <button onclick="setSize('portrait',this)">세로형<br><span style="font-size:.62rem;opacity:.6;">1080×1350</span></button>
-        <button onclick="setSize('landscape',this)">가로형<br><span style="font-size:.62rem;opacity:.6;">1350×1080</span></button>
+        <button onclick="setSize('landscape',this)">가로형<br><span style="font-size:.62rem;opacity:.6;">1350×1000</span></button>
         <button onclick="setSize('twitter',this)">트위터 헤더<br><span style="font-size:.62rem;opacity:.6;">1500×500</span></button>
       </div>
     </div>
@@ -694,7 +694,7 @@ function toggleQuotes(){
 }
 
 function toggleDark(){const d=document.body.classList.toggle('dark');document.getElementById('themeBtn').innerHTML=d?ICON_SUN:ICON_MOON;}
-const SIZES={square:{w:1080,h:1080},portrait:{w:1080,h:1350},landscape:{w:1350,h:1080},twitter:{w:1500,h:500}};
+const SIZES={square:{w:1080,h:1080},portrait:{w:1080,h:1350},landscape:{w:1350,h:1000},twitter:{w:1500,h:500}};
 function curSize(){return SIZES[state.sizeId]||SIZES.square;}
 function setSize(id,btn){
   const s=SIZES[id];if(!s)return;
