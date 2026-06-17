@@ -161,9 +161,10 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 
     <div class="card">
       <div class="lbl">이미지 크기</div>
-      <div class="seg" id="segSize">
+      <div class="seg" id="segSize" style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">
         <button class="on" onclick="setSize('square',this)">정사각형<br><span style="font-size:.62rem;opacity:.6;">1080×1080</span></button>
         <button onclick="setSize('portrait',this)">세로형<br><span style="font-size:.62rem;opacity:.6;">1080×1350</span></button>
+        <button onclick="setSize('landscape',this)">가로형<br><span style="font-size:.62rem;opacity:.6;">1350×1080</span></button>
         <button onclick="setSize('twitter',this)">트위터 헤더<br><span style="font-size:.62rem;opacity:.6;">1500×500</span></button>
       </div>
     </div>
@@ -334,7 +335,7 @@ function restoreUI(){
   if(!SIZES[state.sizeId])state.sizeId='square';
   const sz=curSize();const cv=document.getElementById('canvas');cv.style.width=sz.w+'px';cv.style.height=sz.h+'px';
   const wrap=document.querySelector('.canvas-wrap');if(wrap)wrap.style.aspectRatio=sz.w+' / '+sz.h;
-  const sord={square:0,portrait:1,twitter:2};document.querySelectorAll('#segSize button').forEach((b,i)=>b.classList.toggle('on',i===(sord[state.sizeId]!==undefined?sord[state.sizeId]:0)));
+  const sord={square:0,portrait:1,landscape:2,twitter:3};document.querySelectorAll('#segSize button').forEach((b,i)=>b.classList.toggle('on',i===(sord[state.sizeId]!==undefined?sord[state.sizeId]:0)));
   document.querySelectorAll('#fonts .fbtn').forEach(b=>b.classList.toggle('on',b.dataset.f===state.font));
   const am={left:0,center:1,right:2};document.querySelectorAll('#segAlign button').forEach((b,i)=>b.classList.toggle('on',i===am[state.align]));
   const vm={center:0,top:1,bottom:2};document.querySelectorAll('#segValign button').forEach((b,i)=>b.classList.toggle('on',i===vm[state.valign]));
@@ -693,7 +694,7 @@ function toggleQuotes(){
 }
 
 function toggleDark(){const d=document.body.classList.toggle('dark');document.getElementById('themeBtn').innerHTML=d?ICON_SUN:ICON_MOON;}
-const SIZES={square:{w:1080,h:1080},portrait:{w:1080,h:1350},twitter:{w:1500,h:500}};
+const SIZES={square:{w:1080,h:1080},portrait:{w:1080,h:1350},landscape:{w:1350,h:1080},twitter:{w:1500,h:500}};
 function curSize(){return SIZES[state.sizeId]||SIZES.square;}
 function setSize(id,btn){
   const s=SIZES[id];if(!s)return;
