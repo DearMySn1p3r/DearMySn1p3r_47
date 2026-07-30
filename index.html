@@ -324,11 +324,16 @@ const ICON_MOON='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" str
 const ICON_SUN='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.2M12 19.8V22M4.2 4.2l1.5 1.5M18.3 18.3l1.5 1.5M2 12h2.2M19.8 12H22M4.2 19.8l1.5-1.5M18.3 5.7l1.5-1.5"/></svg>';
 const LS_BG='excerpt.bg.v1', LS_HL='excerpt.hl.v1', LS_SET='excerpt.settings.v1';
 function loadLS(k){try{return JSON.parse(localStorage.getItem(k))||[];}catch(e){return [];}}
-function saveLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function saveLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}
 let myBg=loadLS(LS_BG), myHl=loadLS(LS_HL);
 let settingsReady=false;
 const SET_KEYS=['font','fontSize','lineHeight','letterSpacing','padX','padY','align','valign','wrap','color','colorLocked','mode','presetId','bgCss','customMode','dir','sizeId'];
-function saveSettings(){if(!settingsReady)return;clearTimeout(saveSettings._t);saveSettings._t=setTimeout(()=>{const o={};SET_KEYS.forEach(k=>o[k]=state[k]);saveLS(LS_SET,o);},250);}
+function saveSettings(){if(!settingsReady)return;clearTimeout(saveSettings._t);saveSettings._t=setTimeout(()=>{
+  const o={};SET_KEYS.forEach(k=>o[k]=state[k]);
+  /* 이미지 배경은 data URL이라 용량이 크다. 저장 공간을 넘기면 설정이 통째로 안 남던 문제 —
+     넘칠 땐 배경만 빼고 나머지 설정(서체·크기·여백 등)은 지킨다. */
+  if(!saveLS(LS_SET,o))saveLS(LS_SET,Object.assign({},o,{bgCss:'#F2F0EA',mode:'preset',presetId:'paper'}));
+},250);}
 function loadSettings(){let o;try{o=JSON.parse(localStorage.getItem(LS_SET));}catch(e){o=null;}if(o&&typeof o==='object'){SET_KEYS.forEach(k=>{if(o[k]!==undefined)state[k]=o[k];});}try{if(!localStorage.getItem('excerpt.lhfix.v3')){if(state.lineHeight>1.8)state.lineHeight=1.72;localStorage.setItem('excerpt.lhfix.v3','1');}}catch(_){}settingsReady=true;}
 function setVal(key){const el=document.getElementById('v-'+key);if(!el)return;const v=state[key];const u=key==='lineHeight'?'x':'px';const disp=key==='letterSpacing'?(+v).toFixed(1):(key==='lineHeight'?(+v).toFixed(2):v);el.innerHTML=disp+'<span class="u">'+u+'</span>';}
 function restoreUI(){
@@ -367,7 +372,7 @@ function buildCustom(){
   const css=state.dir==='radial'?'radial-gradient(circle at 50% 30%, '+a+', '+b+')':'linear-gradient('+state.dir+', '+a+', '+b+')';
   return {css,base:avgHex(a,b)};
 }
-function setCustomMode(m){state.customMode=m;document.getElementById('cmSolid').classList.toggle('on',m==='solid');document.getElementById('cmGrad').classList.toggle('on',m==='grad');document.getElementById('solidWrap').style.display=m==='solid'?'flex':'none';document.getElementById('gradWrap').style.display=m==='grad'?'flex':'none';updateCustom(true);}
+function setCustomMode(m){state.customMode=m;document.getElementById('cmSolid').classList.toggle('on',m==='solid');document.getElementById('cmGrad').classList.toggle('on',m==='grad');document.getElementById('cmImg').classList.remove('on');document.getElementById('solidWrap').style.display=m==='solid'?'flex':'none';document.getElementById('gradWrap').style.display=m==='grad'?'flex':'none';updateCustom(true);}
 function setDir(d,btn){state.dir=d;document.querySelectorAll('.dirbtn').forEach(x=>x.classList.remove('on'));btn.classList.add('on');updateCustom(false);}
 function updateCustom(recolor){
   const r=buildCustom();
@@ -380,7 +385,12 @@ function saveBg(){
   let item;
   if(/url\(/.test(state.bgCss)) item={css:state.bgCss,color:state.color};
   else { const r=buildCustom(); item={css:r.css,color:state.colorLocked?state.color:autoText(r.base)}; }
-  myBg.unshift(item);if(myBg.length>18)myBg.pop();saveLS(LS_BG,myBg);renderMyBg();
+  myBg.unshift(item);if(myBg.length>18)myBg.pop();
+  /* 저장이 조용히 실패하던 문제 — 공간이 모자라면 오래된 것부터 비우고, 그래도 안 되면 알려준다 */
+  let ok=saveLS(LS_BG,myBg);
+  while(!ok&&myBg.length>1){myBg.pop();ok=saveLS(LS_BG,myBg);}
+  if(!ok)alert('저장 공간이 부족해 배경을 기억해 두지 못했어요. 이미지 배경은 용량이 커서 저장이 안 될 수 있어요.');
+  renderMyBg();
 }
 function onBgImage(input){
   const file=input.files&&input.files[0];if(!file)return;
@@ -421,7 +431,9 @@ function applyTheme(){
   ['heading','subtitle','quote','attr'].forEach(id=>document.getElementById(id).style.color=c.q);
   document.getElementById('attr').style.opacity=c.op;
   document.getElementById('subtitle').style.opacity=state.color==='light'?.7:.55;
-  const ir=document.getElementById('imgRow');if(ir)ir.style.display=/url\(/.test(state.bgCss||'')?'flex':'none';
+  const isImg=/url\(/.test(state.bgCss||'');
+  const ir=document.getElementById('imgRow');if(ir)ir.style.display=isImg?'flex':'none';
+  const ci=document.getElementById('cmImg');if(ci)ci.classList.toggle('on',isImg);   // 이미지 배경일 때 버튼도 켜진 상태로
   saveSettings();
 }
 
@@ -430,8 +442,12 @@ function setAlign(v,btn){state.align=v;document.querySelectorAll('#segAlign butt
 function setValign(v,btn){state.valign=v;document.querySelectorAll('#segValign button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');applyStyle();}
 function setWrap(v,btn){state.wrap=v;document.querySelectorAll('.seg-wrap').forEach(b=>{b.classList.remove('on');b.style.color='var(--muted)';b.style.borderColor='var(--line)';b.style.background='var(--field)';});btn.classList.add('on');btn.style.color='var(--accent)';btn.style.borderColor='var(--accent)';btn.style.background='var(--accent-soft)';applyStyle();}
 function adjust(key,d){
-  let v=+(state[key]+d).toFixed(2);const min={fontSize:12,lineHeight:1,letterSpacing:-5,padX:24,padY:24};
-  if(v<min[key])v=min[key];state[key]=v;
+  let v=+(state[key]+d).toFixed(2);
+  const min={fontSize:12,lineHeight:1,letterSpacing:-5,padX:24,padY:24};
+  const max={fontSize:160,lineHeight:3,letterSpacing:20,padX:400,padY:460};   // 상한이 없어 무한정 커지던 문제
+  if(min[key]!==undefined&&v<min[key])v=min[key];
+  if(max[key]!==undefined&&v>max[key])v=max[key];
+  state[key]=v;
   const el=document.getElementById('v-'+key);
   if(el){const u=key==='lineHeight'?'x':'px';const disp=key==='letterSpacing'?v.toFixed(1):(key==='lineHeight'?v.toFixed(2):v);el.innerHTML=disp+'<span class="u">'+u+'</span>';}
   applyStyle();
@@ -509,8 +525,22 @@ function render(){
 }
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-editor.addEventListener('input',()=>{sanitizeEditor();sync();});
+/* 한글 조합(IME) 중에는 본문 정리를 멈춘다 — 조합 중 커서를 옮기면 글자가 깨진다 */
+let _composing=false;
+editor.addEventListener('compositionstart',()=>{_composing=true;});
+editor.addEventListener('compositionend',()=>{_composing=false;sanitizeEditor();sync();});
+editor.addEventListener('input',()=>{if(_composing){sync();return;}sanitizeEditor();sync();});
 editor.addEventListener('paste',e=>{e.preventDefault();const t=(e.clipboardData||window.clipboardData).getData('text/plain');document.execCommand('insertText',false,t);});
+/* Enter는 <div> 대신 <br>로 넣는다.
+   크롬이 만든 <div>를 정리하는 과정에서 맨 앞에 빈 줄이 생기고
+   커서가 앞줄 끝으로 튀어 줄바꿈이 안 되던 문제를 막는다. */
+editor.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||e.isComposing||e.keyCode===229)return;
+  e.preventDefault();
+  let ok=false;
+  try{ok=document.execCommand('insertLineBreak');}catch(_){}
+  if(!ok){try{document.execCommand('insertHTML',false,'<br>');}catch(_){}}
+});
 
 /* 본문 정리 — 삭제/붙여넣기로 끼어드는 빈 형광펜·인라인 스타일 제거(글씨 작아짐·공백 버그 방지). 필요할 때만 실행해 커서 유지 */
 let _sanitizing=false;
@@ -538,7 +568,17 @@ function sanitizeEditor(){
   editor.querySelectorAll('mark').forEach(m=>{m.removeAttribute('class');if(!m.textContent)unwrapMark(m);});
   // 마크 외 인라인 래퍼: span/font/u만 풀고, 굵게/기울임(b,i,strong,em)은 보존
   editor.querySelectorAll('span,font,u').forEach(el=>{const p=el.parentNode;if(!p)return;while(el.firstChild)p.insertBefore(el.firstChild,el);p.removeChild(el);});
-  editor.querySelectorAll('div,p').forEach(el=>{const p=el.parentNode;if(!p)return;p.insertBefore(document.createElement('br'),el);while(el.firstChild)p.insertBefore(el.firstChild,el);p.removeChild(el);});
+  // 굵게/기울임은 살리되 붙여넣기로 딸려온 스타일·클래스는 벗긴다(안 벗기면 정리가 매번 다시 돌아 커서가 튄다)
+  editor.querySelectorAll('b,i,strong,em').forEach(el=>{el.removeAttribute('style');el.removeAttribute('class');});
+  // 블록(div/p) → <br>: 줄 '사이'에만 넣는다. 맨 앞에 넣으면 빈 줄이 하나 더 생긴다.
+  editor.querySelectorAll('div,p').forEach(el=>{
+    const p=el.parentNode;if(!p)return;
+    if(el.previousSibling)p.insertBefore(document.createElement('br'),el);
+    // 크롬이 빈 줄 표시용으로 넣는 <br> 하나짜리 블록은 내용 없이 취급(줄바꿈 2배 방지)
+    if(el.childNodes.length===1&&el.firstChild.nodeName==='BR')el.removeChild(el.firstChild);
+    while(el.firstChild)p.insertBefore(el.firstChild,el);
+    p.removeChild(el);
+  });
   editor.normalize&&editor.normalize();
   if(caret!=null){const r=caretAt(caret);if(r){try{s.removeAllRanges();s.addRange(r);}catch(_){}}}
   _sanitizing=false;
@@ -654,7 +694,14 @@ function actHL(el, fn){
 }
 document.querySelectorAll('.hsw').forEach(b=>actHL(b,()=>applyHL(b.dataset.c)));
 document.getElementById('hlClearAll').addEventListener('click',clearAllHL);
-document.getElementById('hlCustom').addEventListener('input',e=>applyHL(e.target.value));
+/* 색 직접 지정: 'input'은 색을 고르는 동안 계속 발생해서, 스쳐 지나간 첫 색이 칠해지고
+   그 뒤로는 선택이 풀려 "글자를 먼저 드래그하세요" 안내만 떴다.
+   고르기를 끝냈을 때(change) 한 번만 칠하도록 바꾼다. */
+(function(){
+  const hc=document.getElementById('hlCustom');
+  ['pointerdown','mousedown','touchstart'].forEach(ev=>hc.addEventListener(ev,captureOffsets));
+  hc.addEventListener('change',e=>applyHL(e.target.value));
+})();
 actHL(document.getElementById('hlSaveBtn'),()=>{const c=document.getElementById('hlCustom').value;if(!myHl.includes(c)){myHl.unshift(c);if(myHl.length>12)myHl.pop();saveLS(LS_HL,myHl);renderMyHl();}});
 /* 선택 부분 굵게/기울임 (토글) — 형광펜처럼 부분 적용 */
 function applyEmphasis(cmd){
@@ -683,18 +730,102 @@ function renderMyHl(){
   });
 }
 
+/* ── 따옴표 직선 " " ⇄ 곡선 “ ” (양방향) ──────────────────────────────
+   고친 점
+   1) 여러 텍스트 노드(줄바꿈·형광펜·굵게·기울임)에 걸친 따옴표도 변환된다.
+      예전엔 노드마다 따로 정규식을 돌려서, 여는 따옴표와 닫는 따옴표가
+      다른 줄/다른 <mark> 안에 있으면 짝이 안 잡혀 아무 일도 안 일어났다.
+   2) 짝이 안 맞는 따옴표(하나만 있는 경우)도 앞 문맥을 보고 열림/닫힘을 정한다.
+   3) don't 처럼 단어 사이 어퍼스트로피는 ’ 로 바꾼다(여는 따옴표로 오인 X).
+   4) 줄(블록) 경계를 가상 개행으로 취급해, 새 줄 첫 따옴표를 여는 따옴표로 본다. */
+const Q_CURLY=/[\u201c\u201d\u2018\u2019]/;
+const Q_BLOCK=/^(DIV|P|BR|LI|UL|OL|H[1-6]|BLOCKQUOTE|PRE|TABLE|TR|SECTION|ARTICLE)$/;
+const Q_WORD=/[\p{L}\p{N}]/u;
+const Q_OPEN_AFTER=/[\s(\[{<\u00ab\u2014\u2013\u2026/\-\u201c\u2018]/;
+
+/* 에디터 안의 모든 글자를 순서대로 모은다.
+   {node,i,ch} = 실제 글자, {ch:'\n'} = 블록 경계(가상 개행, 되쓰지 않음) */
+function qChars(root){
+  const items=[];
+  (function walk(n){
+    const kids=n.childNodes;
+    for(let i=0;i<kids.length;i++){
+      const c=kids[i];
+      if(c.nodeType===3){
+        const v=c.nodeValue;
+        for(let j=0;j<v.length;j++) items.push({node:c,i:j,ch:v[j]});
+      }else if(c.nodeType===1){
+        const blk=Q_BLOCK.test(c.tagName);
+        if(blk&&items.length&&items[items.length-1].ch!=='\n') items.push({ch:'\n'});
+        walk(c);
+        if(blk) items.push({ch:'\n'});
+      }
+    }
+  })(root);
+  return items;
+}
+
+/* 직선 → 곡선: 앞뒤 글자를 보고 여는/닫는 따옴표를 결정 */
+function qToCurly(src){
+  let r='';
+  for(let k=0;k<src.length;k++){
+    const c=src[k];
+    if(c!=='"'&&c!=="'"){r+=c;continue;}
+    const p=k>0?src[k-1]:'', nx=k+1<src.length?src[k+1]:'';
+    const open=(p===''||Q_OPEN_AFTER.test(p));
+    if(c==='"'){ r+=open?'\u201c':'\u201d'; }
+    else if(Q_WORD.test(p)&&Q_WORD.test(nx)){ r+='\u2019'; }   /* don't, it's */
+    else { r+=open?'\u2018':'\u2019'; }
+  }
+  return r;
+}
+
 function toggleQuotes(){
-  const walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT);const nodes=[];let n;while(n=walker.nextNode())nodes.push(n);
-  if(!nodes.length)return;
-  const full=nodes.map(x=>x.nodeValue).join('');
-  const straight=/['"]/.test(full),curved=/[\u201c\u201d\u2018\u2019]/.test(full);
-  if(curved){nodes.forEach(x=>{x.nodeValue=x.nodeValue.replace(/[\u201c\u201d]/g,'"').replace(/[\u2018\u2019]/g,"'");});}
-  else if(straight){nodes.forEach(x=>{x.nodeValue=x.nodeValue.replace(/"([^"]*)"/g,'\u201c$1\u201d').replace(/'([^']*)'/g,'\u2018$1\u2019');});}
-  else{nodes[0].nodeValue='\u201c'+nodes[0].nodeValue;nodes[nodes.length-1].nodeValue+='\u201d';}
+  const items=qChars(editor);
+  if(!items.length)return;
+  const src=items.map(o=>o.ch).join('');
+  let out=null;
+
+  if(Q_CURLY.test(src)){
+    /* 곡선 → 직선 */
+    out=src.replace(/[\u201c\u201d]/g,'"').replace(/[\u2018\u2019]/g,"'");
+  }else if(/['"]/.test(src)){
+    /* 직선 → 곡선 */
+    out=qToCurly(src);
+  }else{
+    /* 따옴표가 하나도 없으면 본문 전체를 “ ” 로 감싼다 (앞뒤 공백은 건드리지 않음) */
+    const real=items.filter(o=>o.node);
+    let a=0,b=real.length-1;
+    while(a<=b&&/\s/.test(real[a].ch))a++;
+    while(b>=a&&/\s/.test(real[b].ch))b--;
+    if(a>b)return;
+    const A=real[a],B=real[b];
+    B.node.nodeValue=B.node.nodeValue.slice(0,B.i+1)+'\u201d'+B.node.nodeValue.slice(B.i+1);
+    A.node.nodeValue=A.node.nodeValue.slice(0,A.i)+'\u201c'+A.node.nodeValue.slice(A.i);
+    selA=selB=-1;
+    sync();
+    return;
+  }
+
+  if(out===src)return;
+  /* 치환은 1글자 → 1글자라 길이가 같다. 노드 경계를 그대로 둔 채 되쓴다
+     (형광펜·굵게·기울임 구조가 깨지지 않는다) */
+  const buf=new Map();
+  for(let k=0;k<items.length;k++){
+    const o=items[k];
+    if(!o.node)continue;
+    let arr=buf.get(o.node);
+    if(!arr){arr=o.node.nodeValue.split('');buf.set(o.node,arr);}
+    arr[o.i]=out[k];
+  }
+  buf.forEach((arr,node)=>{const v=arr.join('');if(node.nodeValue!==v)node.nodeValue=v;});
   sync();
 }
 
-function toggleDark(){const d=document.body.classList.toggle('dark');document.getElementById('themeBtn').innerHTML=d?ICON_SUN:ICON_MOON;}
+/* 화면 테마도 기억해 둔다 — 새로고침할 때마다 밝은 모드로 돌아가던 문제 */
+const LS_DARK='excerpt.dark.v1';
+function setDark(d){document.body.classList.toggle('dark',d);document.getElementById('themeBtn').innerHTML=d?ICON_SUN:ICON_MOON;}
+function toggleDark(){const d=!document.body.classList.contains('dark');setDark(d);try{localStorage.setItem(LS_DARK,d?'1':'0');}catch(_){}}
 const SIZES={square:{w:1080,h:1080},portrait:{w:1080,h:1350},landscape:{w:1350,h:1000},twitter:{w:1500,h:500}};
 function curSize(){return SIZES[state.sizeId]||SIZES.square;}
 function setSize(id,btn){
@@ -712,10 +843,16 @@ function shot(){const s=curSize();return html2canvas(document.getElementById('ca
 function saveImg(){const b=document.getElementById('saveBtn'),o=b.textContent;b.textContent='생성 중…';b.disabled=true;shot().then(cv=>{const a=document.createElement('a');a.download='excerpt_'+Date.now()+'.png';a.href=cv.toDataURL('image/png');a.click();b.textContent=o;b.disabled=false;}).catch(()=>{alert('저장에 실패했어요. 다시 시도해 주세요.');b.textContent=o;b.disabled=false;});}
 function copyImg(){const b=document.getElementById('copyBtn'),o=b.textContent;b.textContent='복사 중…';b.disabled=true;shot().then(cv=>{cv.toBlob(blob=>{if(!blob){alert('복사 중 문제가 생겼어요.');b.textContent=o;b.disabled=false;return;}try{navigator.clipboard.write([new ClipboardItem({'image/png':blob})]).then(()=>{b.textContent='복사됨!';setTimeout(()=>{b.textContent=o;b.disabled=false;},1600);}).catch(()=>{alert('이 브라우저에서는 복사가 안 돼요. 이미지 저장을 이용해 주세요.');b.textContent=o;b.disabled=false;});}catch(e){alert('클립보드를 지원하지 않는 환경이에요. 이미지 저장을 이용해 주세요.');b.textContent=o;b.disabled=false;}},'image/png');}).catch(()=>{alert('복사에 실패했어요.');b.textContent=o;b.disabled=false;});}
 
-document.getElementById('themeBtn').innerHTML=ICON_MOON;
+try{setDark(localStorage.getItem(LS_DARK)==='1');}catch(_){setDark(false);}
 loadSettings();
 buildSwatches();renderMyBg();renderMyHl();restoreUI();applyTheme();applyStyle();render();
-window.addEventListener('DOMContentLoaded',()=>{const w=document.querySelector('.canvas-wrap');if(w)new ResizeObserver(scale).observe(w);scale();});
+/* ResizeObserver가 없는 브라우저에서는 그 자리에서 멈춰 scale()이 아예 안 돌던 문제 — 감싸고 resize로 대체 */
+window.addEventListener('DOMContentLoaded',()=>{
+  const w=document.querySelector('.canvas-wrap');
+  try{if(w&&window.ResizeObserver)new ResizeObserver(scale).observe(w);}catch(_){}
+  scale();
+});
+window.addEventListener('resize',()=>{scale();renderHL();});
 try{document.fonts&&document.fonts.ready&&document.fonts.ready.then(()=>{renderHL();});}catch(_){}
 window.addEventListener('load',()=>{renderHL();});
 scale();
