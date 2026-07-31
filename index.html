@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Excerpt Card Maker</title>
 <link rel="icon" type="image/png" href="./MOMO.png">
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
@@ -23,6 +23,7 @@ body.dark{
   --shadow:0 1px 2px rgba(0,0,0,.3), 0 16px 48px -16px rgba(0,0,0,.6);
 }
 *{box-sizing:border-box;}
+button{font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 html,body{margin:0;}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
 body{font-family:'Pretendard',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;transition:background .35s,color .35s;min-height:100vh;}
@@ -133,7 +134,22 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 .btn:disabled{opacity:.6;cursor:default;transform:none;}
 
 .preview{flex:1 1 380px;min-width:0;max-width:560px;position:sticky;top:38px;display:flex;flex-direction:column;gap:14px;}
-.canvas-wrap{width:100%;aspect-ratio:1/1;position:relative;border-radius:14px;overflow:hidden;box-shadow:0 24px 60px -20px rgba(44,40,35,.35);}
+/* 미리보기 밑 정보줄 — 지금 만들어지는 실제 픽셀 크기를 보여 준다(자동 연장이 눈에 보이도록) */
+.pv-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;
+        font-size:.7rem;letter-spacing:.06em;color:var(--muted);}
+.pv-size{font-variant-numeric:tabular-nums;}
+.pv-fold{display:none;border:1px solid var(--line);background:var(--panel);color:var(--muted);
+         border-radius:20px;padding:7px 13px;font-size:.72rem;cursor:pointer;}
+/* 설정 카드 바로가기 — 폰에서 카드가 세로로 길게 늘어서 매번 한참 스크롤하던 것 */
+.qnav{display:none;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.qnav::-webkit-scrollbar{display:none;}
+.qnav button{flex:0 0 auto;border:1px solid var(--line);background:var(--panel);color:var(--muted);
+             border-radius:20px;padding:8px 14px;font-size:.75rem;cursor:pointer;white-space:nowrap;}
+.qnav button.on{color:var(--accent);border-color:var(--accent);background:var(--accent-soft);font-weight:600;}
+.canvas-wrap{width:100%;aspect-ratio:1/1;position:relative;border-radius:14px;overflow:hidden;margin:0 auto;
+             box-shadow:0 24px 60px -20px rgba(44,40,35,.35);
+             /* 세로로 길어진 카드가 화면을 넘어가지 않도록 높이로도 묶는다 */
+             max-width:min(100%,calc(76vh * var(--ar,1)));}
 #canvas{width:1080px;height:1080px;position:absolute;top:0;left:0;transform-origin:top left;display:flex;align-items:center;justify-content:center;padding:110px 84px;box-sizing:border-box;background:#F2F0EA;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
 #canvas .veil{position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 80% at 50% 0%,rgba(255,255,255,.07),transparent 60%);}
 #stage{position:relative;z-index:2;width:100%;display:flex;flex-direction:column;}
@@ -152,40 +168,61 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
    컨트롤을 만지면서 카드가 어떻게 변하는지 바로 보이는 게 이 앱의 전부라,
    폰에서 미리보기가 위로 스크롤돼 사라지면 매번 올라갔다 내려와야 했다. */
 @media(max-width:880px){
-  .wrap{display:flex;flex-direction:column;align-items:stretch;gap:20px;padding:20px 16px 76px;max-width:640px;}
+  .wrap{display:flex;flex-direction:column;align-items:stretch;gap:20px;max-width:640px;
+        padding:20px 16px calc(94px + env(safe-area-inset-bottom,0px));}
   .masthead{order:-2;flex:0 0 auto;margin-bottom:0;padding-bottom:14px;}
-  .preview{order:-1;flex:0 0 auto;max-width:none;position:sticky;top:0;z-index:20;
-           margin:0 -16px;padding:10px 16px 12px;background:var(--bg);
+  .preview{order:-1;flex:0 0 auto;max-width:none;position:sticky;top:0;z-index:20;gap:9px;
+           margin:0 -16px;padding:10px 16px 10px;background:var(--bg);
            border-bottom:1px solid var(--line);transition:background .35s,border-color .35s;}
   .panel{order:0;flex:0 0 auto;max-width:none;}
   /* 높이를 직접 자르면 비율이 깨지므로, 가로폭을 (높이 × 카드비율)로 묶는다.
-     --ar 은 이미지 크기를 바꿀 때 JS가 넣어 준다. */
-  .canvas-wrap{max-width:calc(34vh * var(--ar,1));margin:0 auto;
+     --ar 은 이미지 크기를 바꿀 때 JS가 넣어 준다. 세로로 늘어난 카드도 화면 안에 들어온다. */
+  .canvas-wrap{max-width:min(100%,calc(34vh * var(--ar,1)));margin:0 auto;
                box-shadow:0 10px 26px -14px rgba(44,40,35,.45);}
   /* 주소창이 보일 때 vh가 실제보다 커서 미리보기가 화면을 넘던 것 — 지원하면 svh로 */
-  .canvas-wrap{max-width:calc(34svh * var(--ar,1));}
+  .canvas-wrap{max-width:min(100%,calc(34svh * var(--ar,1)));}
+  /* 접기: 화면 밖으로 밀어 둘 뿐 계속 그려 둔다 —
+     숨겨 버리면 저장·복사·형광펜 좌표 계산이 전부 어긋난다 */
+  .preview.fold .canvas-wrap{position:absolute;left:-99999px;top:0;width:320px;max-width:320px;}
+  .pv-fold{display:inline-block;}
+  .qnav{display:flex;}
+  /* 저장·복사를 화면 아래에 고정 — 카드 한참 아래에 있어 매번 끝까지 내려가야 했다 */
+  .actions{position:fixed;left:0;right:0;bottom:0;z-index:40;gap:10px;
+           padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));
+           background:var(--bg);border-top:1px solid var(--line);
+           box-shadow:0 -8px 24px -16px rgba(0,0,0,.5);}
+  .btn{padding:14px 10px;border-radius:12px;}
+  /* iOS 사파리는 글자가 16px보다 작은 입력칸을 누르면 화면을 확대해 버린다 */
+  .editor,textarea,input[type=text]{font-size:16px;}
+  .editor{min-height:112px;}
+  .seg button,.mini-seg button,.chip{min-height:38px;}
+  .fbtn{padding:14px 4px;}
 }
 /* 가로로 눕힌 폰처럼 세로가 짧을 땐 고정하면 화면을 다 먹는다 */
 @media(max-width:880px) and (max-height:520px){
   .preview{position:relative;margin:0;padding:0;border-bottom:none;}
   .canvas-wrap{max-width:none;}
+  .qnav{display:none;}
 }
 @media(max-width:560px){
-  .wrap{padding:16px 14px 76px;gap:16px;}
+  .wrap{padding:16px 14px calc(94px + env(safe-area-inset-bottom,0px));gap:16px;}
   .preview{margin:0 -14px;padding:8px 14px 10px;}
+  .actions{padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));}
   .card{padding:16px;border-radius:16px;}
   .brand .title{font-size:1.35rem;}
-  /* iOS 사파리는 글자가 16px보다 작은 입력칸을 누르면 화면을 확대해 버린다 */
-  .editor,textarea,input[type=text]{font-size:16px;}
   .split{flex-direction:column;gap:14px;}          /* 글자색 2개 + 세로위치 3개가 한 줄에 끼던 것 */
   .attr{flex-direction:column;gap:8px;}
   .attr input:first-child,.attr input:last-child{flex:0 0 auto;}
   .saved-grid{grid-template-columns:repeat(5,1fr);}
   /* 손가락으로 누를 수 있는 크기로 */
-  .hsw,.hsv,.hl-custom,.hl-erase{width:30px;height:30px;}
+  .hsw,.hsv,.hl-custom,.hl-erase{width:32px;height:32px;}
   .sv .x,.hsv .x{width:20px;height:20px;font-size:11px;top:-7px;right:-7px;}
-  .dirbtn,.stepper button{width:34px;height:34px;}
-  .btn{padding:16px 10px;}
+  .dirbtn,.stepper button{width:38px;height:38px;}
+  .stepper{gap:10px;}
+  .val{min-width:62px;}
+  .row{min-height:44px;}
+  .emph{width:36px;height:34px;}
+  .btn{padding:15px 10px;}
   .hl-bar{gap:9px;}
 }
 @media(max-width:380px){
@@ -212,17 +249,18 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 
   <section class="panel">
 
-    <div class="card">
+    <div class="card" id="c-size">
       <div class="lbl">이미지 크기</div>
       <div class="seg" id="segSize" style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">
         <button class="on" onclick="setSize('square',this)">정사각형<br><span style="font-size:.62rem;opacity:.6;">1080×1080</span></button>
-        <button onclick="setSize('portrait',this)">세로형<br><span style="font-size:.62rem;opacity:.6;">1080×1350</span></button>
-        <button onclick="setSize('landscape',this)">가로형<br><span style="font-size:.62rem;opacity:.6;">1350×1000</span></button>
+        <button onclick="setSize('portrait',this)">세로형<br><span style="font-size:.62rem;opacity:.6;">1080×1350 ↕</span></button>
+        <button onclick="setSize('landscape',this)">가로형<br><span style="font-size:.62rem;opacity:.6;">1350×1000 ↕</span></button>
         <button onclick="setSize('twitter',this)">트위터 헤더<br><span style="font-size:.62rem;opacity:.6;">1500×500</span></button>
       </div>
+      <div class="hint-sm" style="margin-top:10px;">↕ 세로형·가로형은 글이 길어지면 잘리지 않도록 캔버스가 세로로 함께 늘어나요. 정사각형·트위터 헤더는 규격이라 고정이에요.</div>
     </div>
 
-    <div class="card">
+    <div class="card" id="c-bg">
       <div class="lbl">배경</div>
       <div class="swatches" id="swatches"></div>
       <div class="cust">
@@ -263,7 +301,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="c-layout">
       <div class="split">
         <div><div class="mini-lbl">글자색</div>
           <div class="seg" id="segColor"><button onclick="setColor('dark',this)">어둡게</button><button onclick="setColor('light',this)">밝게</button></div></div>
@@ -276,7 +314,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="c-font">
       <div class="lbl">서체</div>
       <div class="fgrid" id="fonts">
         <button class="fbtn f-pre on" data-f="'Pretendard',sans-serif">프리텐다드</button>
@@ -290,7 +328,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="c-tune">
       <div class="lbl" style="margin-bottom:16px;">
         세부 조정
         <div style="display:flex;gap:4px;">
@@ -303,15 +341,16 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
       <div class="row"><span class="name">자간</span><div class="stepper"><button onclick="adjust('letterSpacing',-0.2)">−</button><span class="val" id="v-letterSpacing">0.0<span class="u">px</span></span><button onclick="adjust('letterSpacing',0.2)">+</button></div></div>
       <div class="row"><span class="name">가로 여백</span><div class="stepper"><button onclick="adjust('padX',-8)">−</button><span class="val" id="v-padX">84<span class="u">px</span></span><button onclick="adjust('padX',8)">+</button></div></div>
       <div class="row"><span class="name">세로 여백</span><div class="stepper"><button onclick="adjust('padY',-8)">−</button><span class="val" id="v-padY">110<span class="u">px</span></span><button onclick="adjust('padY',8)">+</button></div></div>
+      <div class="hint-sm" style="margin-top:10px;">＋ · − 를 꾹 누르고 있으면 계속 바뀌어요.</div>
     </div>
 
-    <div class="card">
+    <div class="card" id="c-title">
       <div class="lbl">제목 · 부제 <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint);">선택</span></div>
       <div class="fld"><input type="text" id="inHead" oninput="render()" placeholder="제목"></div>
       <textarea class="sub" id="inSub" oninput="render()" placeholder="부제"></textarea>
     </div>
 
-    <div class="card">
+    <div class="card" id="c-text">
       <div class="lbl">본문 <button class="chip" onclick="toggleQuotes()">&quot; &quot;  ⇄  &ldquo; &rdquo;</button></div>
       <div class="editor" id="editor" contenteditable="true" data-ph="여기에 발췌 문구를 입력하세요."></div>
       <div class="hl-bar">
@@ -333,7 +372,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
         <div class="mini-lbl" style="margin-bottom:7px;">내 형광펜 · 다음에도 사용</div>
         <div id="myHlWrap" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
       </div>
-      <div class="hint-sm" id="hlHint">① 칠할 글자를 드래그(오른쪽 미리보기에서 바로 드래그해도 돼요) → 색을 누르면 칠해져요. ② <b>칠해진 부분을 탭하면 지워져요.</b> ③ 글자를 선택하고 <b>B</b>·<i>I</i> 를 누르면 그 부분만 굵게·기울임돼요(다시 누르면 해제).</div>
+      <div class="hint-sm" id="hlHint">① 칠할 글자를 드래그(미리보기에서 바로 드래그해도 돼요) → 색을 누르면 칠해져요. ② <b>칠해진 부분을 탭하면 지워져요.</b> ③ 글자를 선택하고 <b>B</b>·<i>I</i> 를 누르면 그 부분만 굵게·기울임돼요(다시 누르면 해제).</div>
       <div class="attr">
         <input type="text" id="inSrc" oninput="render()" placeholder="출처 · 작품명">
         <input type="text" id="inSpk" oninput="render()" placeholder="화자 · 챕터">
@@ -346,13 +385,26 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
     </div>
   </section>
 
-  <section class="preview">
+  <section class="preview" id="preview">
     <div class="canvas-wrap">
       <div id="canvas"><div class="veil"></div><div id="stage">
         <div id="titleblock"><div id="heading"></div><div id="subtitle"></div></div>
         <div id="quote"><div id="hlLayer"></div><div id="quoteText"></div></div><div id="attr"></div>
       </div></div>
     </div>
+    <div class="pv-bar">
+      <span class="pv-size" id="szNow">1080 × 1080</span>
+      <button class="pv-fold" id="pvFold" type="button">미리보기 접기</button>
+    </div>
+    <nav class="qnav" id="qnav" aria-label="설정 바로가기">
+      <button type="button" data-go="c-size">크기</button>
+      <button type="button" data-go="c-bg">배경</button>
+      <button type="button" data-go="c-layout">배치</button>
+      <button type="button" data-go="c-font">서체</button>
+      <button type="button" data-go="c-tune">조정</button>
+      <button type="button" data-go="c-title">제목</button>
+      <button type="button" data-go="c-text">본문</button>
+    </nav>
   </section>
 
 </div>
@@ -391,8 +443,7 @@ function setVal(key){const el=document.getElementById('v-'+key);if(!el)return;co
 function restoreUI(){
   // 이미지 크기 복원
   if(!SIZES[state.sizeId])state.sizeId='square';
-  const sz=curSize();const cv=document.getElementById('canvas');cv.style.width=sz.w+'px';cv.style.height=sz.h+'px';
-  setCanvasBox(sz.w,sz.h);
+  liveH=null;fitCanvas();
   const sord={square:0,portrait:1,landscape:2,twitter:3};document.querySelectorAll('#segSize button').forEach((b,i)=>b.classList.toggle('on',i===(sord[state.sizeId]!==undefined?sord[state.sizeId]:0)));
   document.querySelectorAll('#fonts .fbtn').forEach(b=>b.classList.toggle('on',b.dataset.f===state.font));
   const am={left:0,center:1,right:2};document.querySelectorAll('#segAlign button').forEach((b,i)=>b.classList.toggle('on',i===am[state.align]));
@@ -516,13 +567,14 @@ function applyStyle(){
   editor.style.fontFamily=f;editor.style.wordBreak=state.wrap;
   cv.style.padding=state.padY+'px '+state.padX+'px';
   cv.style.alignItems=state.valign==='top'?'flex-start':(state.valign==='bottom'?'flex-end':'center');
+  fitCanvas();
   renderHL();
   saveSettings();
 }
 
 const quoteTextEl=document.getElementById('quoteText');
 const hlLayerEl=document.getElementById('hlLayer');
-function sync(){quoteTextEl.innerHTML=editor.innerHTML;renderHL();}
+function sync(){quoteTextEl.innerHTML=editor.innerHTML;fitCanvas();renderHL();}
 /* 형광펜 오버레이: 미리보기 텍스트의 mark 위치를 계산해, 글자 높이만큼의 사각형을 글자 뒤에 그린다.
    (줄 간격과 무관하게 높이 고정 + 저장에서도 정확) */
 function markBands(m,base,scale,fs){
@@ -688,7 +740,7 @@ function getRange(){
 function flashHint(){
   const h=document.getElementById('hlHint');if(!h)return;
   const prev=h.dataset.base||h.textContent;h.dataset.base=prev;
-  h.textContent='칠할 글자를 먼저 드래그해 선택하세요(본문 칸 또는 오른쪽 미리보기).';
+  h.textContent='칠할 글자를 먼저 드래그해 선택하세요(본문 칸 또는 미리보기).';
   h.style.color='var(--accent)';h.style.fontWeight='700';
   clearTimeout(flashHint._t);flashHint._t=setTimeout(()=>{h.style.color='';h.style.fontWeight='';h.textContent=prev;},2200);
 }
@@ -874,30 +926,103 @@ function toggleQuotes(){
   sync();
 }
 
+/* ── 모바일 편의 ─────────────────────────────────────────────────────
+   미리보기 접기: 화면 밖으로 밀어 둘 뿐 계속 그려 두기 때문에
+   접은 채로 저장·복사해도 결과는 똑같다. */
+function toggleFold(){
+  const pv=document.getElementById('preview');if(!pv)return;
+  const f=pv.classList.toggle('fold');
+  const b=document.getElementById('pvFold');if(b)b.textContent=f?'미리보기 펼치기':'미리보기 접기';
+  requestAnimationFrame(()=>{scale();renderHL();});
+}
+/* 설정 카드 바로가기 — 위에 붙어 있는 미리보기 높이만큼 빼고 멈춘다 */
+function goTo(id){
+  const el=document.getElementById(id);if(!el)return;
+  const pv=document.getElementById('preview');
+  const mobile=window.matchMedia?window.matchMedia('(max-width:880px)').matches:(window.innerWidth<=880);
+  const off=(mobile&&pv)?pv.getBoundingClientRect().height+10:14;
+  const y=el.getBoundingClientRect().top+window.pageYOffset-off;
+  try{window.scrollTo({top:Math.max(0,y),behavior:'smooth'});}catch(_){window.scrollTo(0,Math.max(0,y));}
+}
+(function(){
+  const nav=document.getElementById('qnav');if(!nav)return;
+  const btns=[].slice.call(nav.querySelectorAll('button'));
+  btns.forEach(b=>b.addEventListener('click',()=>goTo(b.dataset.go)));
+  /* 지금 보고 있는 카드에 표시 */
+  let t=null;
+  function spy(){
+    const pv=document.getElementById('preview');
+    const line=(pv?pv.getBoundingClientRect().bottom:0)+28;
+    let cur=btns[0];
+    btns.forEach(b=>{const el=document.getElementById(b.dataset.go);
+      if(el&&el.getBoundingClientRect().top<=line)cur=b;});
+    btns.forEach(b=>b.classList.toggle('on',b===cur));
+  }
+  window.addEventListener('scroll',()=>{if(t)return;t=setTimeout(()=>{t=null;spy();},120);},{passive:true});
+  spy();
+})();
+/* ＋ · − 를 꾹 누르면 연속으로 오르내린다 — 폰에서 수십 번 두드리던 것 */
+(function(){
+  let d=null,r=null;
+  const stop=()=>{clearTimeout(d);clearInterval(r);d=r=null;};
+  document.querySelectorAll('.stepper button').forEach(b=>{
+    b.addEventListener('pointerdown',()=>{stop();d=setTimeout(()=>{r=setInterval(()=>b.click(),80);},420);});
+    ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,stop));
+  });
+  window.addEventListener('pointerup',stop);window.addEventListener('pointercancel',stop);
+})();
+
 /* 화면 테마도 기억해 둔다 — 새로고침할 때마다 밝은 모드로 돌아가던 문제 */
 const LS_DARK='excerpt.dark.v1';
 function setDark(d){document.body.classList.toggle('dark',d);document.getElementById('themeBtn').innerHTML=d?ICON_SUN:ICON_MOON;}
 function toggleDark(){const d=!document.body.classList.contains('dark');setDark(d);try{localStorage.setItem(LS_DARK,d?'1':'0');}catch(_){}}
-const SIZES={square:{w:1080,h:1080},portrait:{w:1080,h:1350},landscape:{w:1350,h:1000},twitter:{w:1500,h:500}};
-function curSize(){return SIZES[state.sizeId]||SIZES.square;}
+/* grow:true — 글이 길어지면 캔버스가 세로로 함께 늘어난다(세로형·가로형).
+   정사각형과 트위터 헤더는 올리는 곳의 규격이 정해져 있어 그대로 둔다. */
+const SIZES={square:{w:1080,h:1080,grow:false},portrait:{w:1080,h:1350,grow:true},
+             landscape:{w:1350,h:1000,grow:true},twitter:{w:1500,h:500,grow:false}};
+const MAX_H=6000;                     /* 무한정 길어지면 저장이 실패한다 */
+let liveH=null;                       /* 지금 실제로 쓰고 있는 세로 길이 */
+function baseSize(){return SIZES[state.sizeId]||SIZES.square;}
+function curSize(){const s=baseSize();return {w:s.w,h:liveH||s.h};}
 /* 미리보기 상자의 비율과, 모바일에서 높이로 폭을 묶을 때 쓰는 --ar 을 함께 지정 */
 function setCanvasBox(w,h){const el=document.querySelector('.canvas-wrap');if(!el)return;
   el.style.aspectRatio=w+' / '+h;el.style.setProperty('--ar',(w/h).toFixed(4));}
-function setSize(id,btn){
-  const s=SIZES[id];if(!s)return;
-  state.sizeId=id;
-  const cv=document.getElementById('canvas');
-  cv.style.width=s.w+'px';cv.style.height=s.h+'px';
-  setCanvasBox(s.w,s.h);
-  document.querySelectorAll('#segSize button').forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');
-  scale();renderHL();saveSettings();
+/* 내용 높이(제목+본문+출처+세로 여백)를 재서 캔버스 길이를 맞춘다.
+   규격보다 짧아지지는 않고, 길 때만 늘어난다. 늘어난 길이는 저장 이미지에도 그대로 반영된다. */
+function fitCanvas(){
+  const s=baseSize(),cv=document.getElementById('canvas'),st=document.getElementById('stage');
+  if(!cv)return false;
+  let h=s.h;
+  if(s.grow&&st){
+    const need=Math.ceil(st.offsetHeight+state.padY*2)+2;   /* +2 = 소수점 반올림 여유 */
+    h=Math.max(s.h,Math.min(need,MAX_H));
+  }
+  const changed=(liveH!==h);
+  liveH=h;
+  if(changed||cv.style.height!==h+'px'||cv.style.width!==s.w+'px'){
+    cv.style.width=s.w+'px';cv.style.height=h+'px';
+    setCanvasBox(s.w,h);scale();
+  }
+  const t=document.getElementById('szNow');
+  if(t)t.textContent=s.w+' × '+h+(h>s.h?'  ·  자동 연장':'');
+  return changed;
 }
-function scale(){const w=document.querySelector('.canvas-wrap'),c=document.getElementById('canvas');if(w&&c)c.style.transform='scale('+(w.getBoundingClientRect().width/curSize().w)+')';}
+function setSize(id,btn){
+  if(!SIZES[id])return;
+  state.sizeId=id;liveH=null;
+  document.querySelectorAll('#segSize button').forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');
+  fitCanvas();scale();renderHL();saveSettings();
+}
+/* 접었을 때처럼 폭이 0으로 잡히면 scale(0)이 되어 미리보기가 사라지던 문제 — 그럴 땐 건너뛴다 */
+function scale(){const w=document.querySelector('.canvas-wrap'),c=document.getElementById('canvas');
+  if(!w||!c)return;const bw=w.getBoundingClientRect().width;if(!bw)return;
+  c.style.transform='scale('+(bw/curSize().w)+')';}
 
 function shot(){const s=curSize();return html2canvas(document.getElementById('canvas'),{scale:1,useCORS:true,backgroundColor:null,width:s.w,height:s.h,onclone:d=>{d.getElementById('canvas').style.transform='scale(1)';}});}
 function saveImg(){const b=document.getElementById('saveBtn'),o=b.textContent;b.textContent='생성 중…';b.disabled=true;shot().then(cv=>{const a=document.createElement('a');a.download='excerpt_'+Date.now()+'.png';a.href=cv.toDataURL('image/png');a.click();b.textContent=o;b.disabled=false;}).catch(()=>{alert('저장에 실패했어요. 다시 시도해 주세요.');b.textContent=o;b.disabled=false;});}
 function copyImg(){const b=document.getElementById('copyBtn'),o=b.textContent;b.textContent='복사 중…';b.disabled=true;shot().then(cv=>{cv.toBlob(blob=>{if(!blob){alert('복사 중 문제가 생겼어요.');b.textContent=o;b.disabled=false;return;}try{navigator.clipboard.write([new ClipboardItem({'image/png':blob})]).then(()=>{b.textContent='복사됨!';setTimeout(()=>{b.textContent=o;b.disabled=false;},1600);}).catch(()=>{alert('이 브라우저에서는 복사가 안 돼요. 이미지 저장을 이용해 주세요.');b.textContent=o;b.disabled=false;});}catch(e){alert('클립보드를 지원하지 않는 환경이에요. 이미지 저장을 이용해 주세요.');b.textContent=o;b.disabled=false;}},'image/png');}).catch(()=>{alert('복사에 실패했어요.');b.textContent=o;b.disabled=false;});}
 
+(function(){const b=document.getElementById('pvFold');if(b)b.addEventListener('click',toggleFold);})();
 try{setDark(localStorage.getItem(LS_DARK)==='1');}catch(_){setDark(false);}
 loadSettings();
 buildSwatches();renderMyBg();renderMyHl();restoreUI();applyTheme();applyStyle();render();
@@ -905,12 +1030,13 @@ buildSwatches();renderMyBg();renderMyHl();restoreUI();applyTheme();applyStyle();
 window.addEventListener('DOMContentLoaded',()=>{
   const w=document.querySelector('.canvas-wrap');
   try{if(w&&window.ResizeObserver)new ResizeObserver(scale).observe(w);}catch(_){}
-  scale();
+  fitCanvas();scale();
 });
-window.addEventListener('resize',()=>{scale();renderHL();});
-try{document.fonts&&document.fonts.ready&&document.fonts.ready.then(()=>{renderHL();});}catch(_){}
-window.addEventListener('load',()=>{renderHL();});
-scale();
+window.addEventListener('resize',()=>{fitCanvas();scale();renderHL();});
+/* 웹폰트가 늦게 오면 줄 수가 달라져 길이도 달라진다 */
+try{document.fonts&&document.fonts.ready&&document.fonts.ready.then(()=>{fitCanvas();renderHL();});}catch(_){}
+window.addEventListener('load',()=>{fitCanvas();renderHL();});
+fitCanvas();scale();
 </script>
 </body>
 </html>
