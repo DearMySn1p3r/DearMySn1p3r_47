@@ -721,7 +721,7 @@ function applyStyle(){
 
 const quoteTextEl=document.getElementById('quoteText');
 const hlLayerEl=document.getElementById('hlLayer');
-function sync(){if(!_composing&&NL.test(editor.textContent))sanitizeEditor();buildLines();paintQuote();renderStrip();updateCount();fitCanvas();renderHL();scheduleDraft();}
+function sync(){buildLines();paintQuote();renderStrip();updateCount();fitCanvas();renderHL();scheduleDraft();}
 
 /* ── 대사 · 지문 구분 ────────────────────────────────────────────────
    에디터(왼쪽 입력칸)는 건드리지 않는다. 커서·IME·형광펜 계산이 전부
@@ -734,19 +734,30 @@ let pendingOv=null;  /* 임시저장/되돌리기에서 복원할 유형 */
 
 /* <br>를 기준으로 자른다. <mark>·<b> 안에 든 <br>(여러 줄을 한꺼번에 칠했을 때)도
    태그를 양쪽으로 복제해 가며 갈라야 줄이 어긋나지 않는다. */
+/* 반환: [{nodes:[...], sep:앞 구분자가 먹은 글자 수}, ...]
+   sep 은 <br>이면 0, 줄바꿈 글자면 1(\r\n은 2). 이 값으로 미리보기 위치를
+   편집칸 글자 번호로 되돌려, 미리보기에서 드래그해도 엉뚱한 데가 칠해지지 않는다. */
 function splitNodes(node){
-  if(node.nodeType===3)return [[node.cloneNode(true)]];
-  if(node.nodeName==='BR')return [[],[]];
-  const segs=[[]],kids=node.childNodes;
+  if(node.nodeType===3){
+    const v=node.nodeValue;
+    if(!NL.test(v))return [{nodes:v?[document.createTextNode(v)]:[],sep:0}];
+    const parts=[],seps=[];let last=0,m;NL_G.lastIndex=0;
+    while((m=NL_G.exec(v))){parts.push(v.slice(last,m.index));seps.push(m[0].length);last=NL_G.lastIndex;}
+    parts.push(v.slice(last));
+    return parts.map((p,i)=>({nodes:p?[document.createTextNode(p)]:[],sep:i?seps[i-1]:0}));
+  }
+  if(node.nodeName==='BR')return [{nodes:[],sep:0},{nodes:[],sep:0}];
+  const segs=[{nodes:[],sep:0}],kids=node.childNodes;
   for(let i=0;i<kids.length;i++){
     const sub=splitNodes(kids[i]);
-    segs[segs.length-1]=segs[segs.length-1].concat(sub[0]);
+    segs[segs.length-1].nodes=segs[segs.length-1].nodes.concat(sub[0].nodes);
     for(let j=1;j<sub.length;j++)segs.push(sub[j]);
   }
   if(node===editor)return segs;
-  return segs.map(seg=>{
-    if(!seg.length)return [];
-    const el=node.cloneNode(false);seg.forEach(n=>el.appendChild(n));return [el];
+  return segs.map(sg=>{
+    if(!sg.nodes.length)return {nodes:[],sep:sg.sep};
+    const el=node.cloneNode(false);sg.nodes.forEach(n=>el.appendChild(n));
+    return {nodes:[el],sep:sg.sep};
   });
 }
 /* 줄 수가 그대로면(=한 줄 안에서 타자 중) 직접 지정한 유형을 그대로 둔다.
@@ -769,11 +780,13 @@ function buildLines(){
      줄을 자르면서 mark가 둘로 갈라질 수 있으므로 원본 번호를 붙여 둔다. */
   editor.querySelectorAll('mark').forEach((m,i)=>m.setAttribute('data-mi',i));
   const segs=splitNodes(editor),texts=[];
-  segs.forEach(nodes=>{let t='';nodes.forEach(n=>t+=(n.textContent||''));texts.push(t);});
+  segs.forEach(sg=>{let t='';sg.nodes.forEach(n=>t+=(n.textContent||''));texts.push(t);});
   if(pendingOv&&pendingOv.length===texts.length){lineOv=pendingOv;pendingOv=null;}
   else lineOv=remapOv(LINES.map(l=>l.text),lineOv,texts);
   pendingOv=null;
-  LINES=segs.map((nodes,i)=>({nodes:nodes,text:texts[i]}));
+  let pos=0;
+  LINES=segs.map((sg,i)=>{pos+=sg.sep;const start=pos;pos+=texts[i].length;
+                          return {nodes:sg.nodes,text:texts[i],start:start};});
 }
 function autoType(t){
   const x=(t||'').replace(/^[\s\u200b]+/,'');
@@ -791,7 +804,12 @@ function paintQuote(){
   quoteTextEl.innerHTML='';
   if(!editor.textContent&&!editor.querySelector('br'))return;   /* 비어 있으면 안내 문구 자리 */
   const base=state.fontSize;
+  /* 맨 끝 빈 줄은 그리지 않는다 — 엔터를 치자마자 카드가 한 줄만큼 늘어나고,
+     저장한 이미지에도 아래쪽에 빈칸이 남던 것. 줄 번호는 그대로 두어 위치 계산은 안 흔들린다. */
+  let last=LINES.length-1;
+  while(last>=0&&!LINES[last].text)last--;
   LINES.forEach((L,i)=>{
+    if(i>last)return;
     const d=document.createElement('div');d.className='ln';
     const ty=state.lineOn?typeOf(i):'d';
     let fs=base,op=1;
@@ -816,7 +834,7 @@ function paintQuote(){
         else if(state.align==='right'){d.style.marginLeft='auto';}
       }
     }
-    d.dataset.fs=fs;d.dataset.op=op;d.dataset.t=ty;
+    d.dataset.fs=fs;d.dataset.op=op;d.dataset.t=ty;d.dataset.i=i;
     if(state.lineOn&&state.lt[ty]&&state.lt[ty].pre){
       const p=document.createElement('span');p.className='pre';p.textContent=state.lt[ty].pre+' ';d.appendChild(p);
     }
@@ -1001,25 +1019,14 @@ function caretAt(pos){
   if(!node){node=editor;off=editor.childNodes.length;}
   try{const r=document.createRange();r.setStart(node,off);r.collapse(true);return r;}catch(_){return null;}
 }
-/* 텍스트 안의 줄바꿈 문자를 <br>로 바꾼다(글자 수가 하나 줄어드는 점은 커서 위치에서 보정) */
+/* 줄바꿈 문자. 크롬은 이 편집칸(white-space:pre-wrap)에서 Enter를 <br>이 아니라
+   줄바꿈 '글자'로 넣는다. 편집칸을 고쳐 쓰면 커서가 앞줄로 튀므로 그대로 두고,
+   미리보기를 그릴 때만 <br>과 똑같이 줄로 나눈다. */
 const NL=/[\r\n\u2028\u2029]/;
-function nlToBr(root){
-  const tn=[];
-  (function w(n){for(let i=0;i<n.childNodes.length;i++){const c=n.childNodes[i];
-    if(c.nodeType===3)tn.push(c);else if(c.nodeType===1&&c.nodeName!=='BR')w(c);}})(root);
-  tn.forEach(t=>{
-    if(!NL.test(t.nodeValue)||!t.parentNode)return;
-    const parts=t.nodeValue.split(/\r\n?|[\n\u2028\u2029]/);
-    const frag=document.createDocumentFragment();
-    parts.forEach((v,i)=>{if(i)frag.appendChild(document.createElement('br'));if(v)frag.appendChild(document.createTextNode(v));});
-    t.parentNode.replaceChild(frag,t);
-  });
-}
+const NL_G=/\r\n|[\r\n\u2028\u2029]/g;
 function sanitizeEditor(){
   if(_sanitizing)return;
   let need=false;
-  const hasNL=NL.test(editor.textContent);
-  if(hasNL)need=true;
   editor.querySelectorAll('*').forEach(el=>{
     if(el.tagName==='MARK'){ if(!el.textContent)need=true; if(el.getAttribute('class')||/font-size|font-family/i.test(el.getAttribute('style')||''))need=true; }
     /* 글자색 span(data-fc)은 살린다 — 없애면 부분 색이 입력 도중 사라진다 */
@@ -1030,11 +1037,6 @@ function sanitizeEditor(){
   _sanitizing=true;
   const s=getSelection();let caret=null;
   if(s&&s.rangeCount&&editor.contains(s.anchorNode))caret=offsetOf(editor,s.anchorNode,s.anchorOffset);
-  if(hasNL){
-    const full=editor.textContent;
-    if(caret!=null)caret-=(full.slice(0,caret).match(new RegExp(NL.source,'g'))||[]).length;
-    nlToBr(editor);
-  }
   // 마크 정리: 클래스만 제거, 배경(형광펜 색)은 유지. 빈 마크는 제거
   editor.querySelectorAll('mark').forEach(m=>{m.removeAttribute('class');if(!m.textContent)unwrapMark(m);});
   // 마크 외 인라인 래퍼: span/font/u만 풀고, 굵게/기울임(b,i,strong,em)은 보존
@@ -1091,6 +1093,28 @@ function rangeFromOffsets(a,b){
   try{const r=document.createRange();r.setStart(sN,sO);r.setEnd(eN,eO);return r.collapsed?null:r;}catch(_){return null;}
 }
 const quoteEl=document.getElementById('quote');
+/* 미리보기는 줄 상자(.ln)로 나뉘어 있고 줄바꿈 글자도 빠져 있다.
+   줄 번호 + 줄 안 위치를 편집칸 글자 번호로 되돌린다. */
+function pvOffset(node,off){
+  if(!node)return null;
+  if(node===quoteTextEl){
+    if(!LINES.length)return null;
+    if(off>=LINES.length){const L=LINES[LINES.length-1];return L.start+L.text.length;}
+    return LINES[Math.max(0,off)].start;
+  }
+  const el=(node.nodeType===1)?node:node.parentNode;
+  const ln=(el&&el.closest)?el.closest('.ln'):null;
+  if(!ln||ln.dataset.i===undefined)return null;
+  const i=+ln.dataset.i;
+  if(!LINES[i])return null;
+  const within=offsetOf(ln,node,off);
+  if(within==null){
+    /* 줄 앞 기호(.pre)에서 드래그가 시작된 경우 — 그 줄 첫 글자로 본다 */
+    const el2=(node.nodeType===1)?node:node.parentNode;
+    return (el2&&el2.closest&&el2.closest('.pre'))?LINES[i].start:null;
+  }
+  return LINES[i].start+within;
+}
 function captureOffsets(){
   const s=getSelection();
   if(!s||!s.rangeCount)return;
@@ -1101,7 +1125,8 @@ function captureOffsets(){
   if(r.commonAncestorContainer===editor||editor.contains(r.commonAncestorContainer)) root=editor;
   else if(r.commonAncestorContainer===quoteTextEl||quoteTextEl.contains(r.commonAncestorContainer)) root=quoteTextEl;
   if(!root)return;
-  const a=offsetOf(root,r.startContainer,r.startOffset), b=offsetOf(root,r.endContainer,r.endOffset);
+  const a=(root===editor)?offsetOf(editor,r.startContainer,r.startOffset):pvOffset(r.startContainer,r.startOffset);
+  const b=(root===editor)?offsetOf(editor,r.endContainer,r.endOffset):pvOffset(r.endContainer,r.endOffset);
   if(a==null||b==null||a===b)return;
   selA=Math.min(a,b); selB=Math.max(a,b);
 }
