@@ -26,6 +26,14 @@ body.dark{
 button{font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 html,body{margin:0;}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
+/* 폰에서 두 번 탭하면 화면이 확대되던 것을 막는다(손가락으로 벌리는 확대는 그대로 된다).
+   당겨서 새로고침도 막는다 — 카드를 위아래로 끌다가 페이지가 새로고침되곤 했다. */
+body{touch-action:manipulation;overscroll-behavior-y:contain;}
+/* 손가락 기기에서는 글자가 16px보다 작은 입력칸을 누르면 화면이 확대된다(iOS) */
+@media(pointer:coarse){
+  .editor,textarea,input[type=text]{font-size:16px;}
+  #quote,#imgbox,#imgel{-webkit-touch-callout:none;}   /* 길게 눌러도 '이미지 저장' 메뉴가 안 뜨게 */
+}
 body{font-family:'Pretendard',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;transition:background .35s,color .35s;min-height:100vh;}
 .wrap{max-width:1180px;margin:0 auto;padding:38px 28px 80px;display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start;}
 
@@ -225,10 +233,17 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
   .panel{order:0;flex:0 0 auto;max-width:none;}
   /* 높이를 직접 자르면 비율이 깨지므로, 가로폭을 (높이 × 카드비율)로 묶는다.
      --ar 은 이미지 크기를 바꿀 때 JS가 넣어 준다. 세로로 늘어난 카드도 화면 안에 들어온다. */
-  .canvas-wrap{max-width:min(100%,calc(34vh * var(--ar,1)));margin:0 auto;
+  /* --ar0 = 늘어나기 전 기본 비율, --ar = 지금 비율.
+     기본 비율로 폭을 잡아 두면 글을 한 줄 쓸 때마다 미리보기가 조금씩 줄어드는 일이 없다.
+     카드가 많이 길어져 44svh를 넘을 때부터만 서서히 작아진다. */
+  .canvas-wrap{max-width:min(100%,calc(34vh * var(--ar0,1)),calc(44vh * var(--ar,1)));margin:0 auto;
                box-shadow:0 10px 26px -14px rgba(44,40,35,.45);}
   /* 주소창이 보일 때 vh가 실제보다 커서 미리보기가 화면을 넘던 것 — 지원하면 svh로 */
-  .canvas-wrap{max-width:min(100%,calc(34svh * var(--ar,1)));}
+  .canvas-wrap{max-width:min(100%,calc(34svh * var(--ar0,1)),calc(44svh * var(--ar,1)));}
+  /* 자판이 올라오면: 미리보기를 줄이고, 아래 고정 버튼은 감춘다(자판 위에 겹쳐 뜨던 것) */
+  body.kb .canvas-wrap{max-width:min(100%,calc(20svh * var(--ar0,1)),calc(26svh * var(--ar,1)));}
+  body.kb .actions{display:none;}
+  body.kb .wrap{padding-bottom:24px;}
   /* 접기: 화면 밖으로 밀어 둘 뿐 계속 그려 둔다 —
      숨겨 버리면 저장·복사·형광펜 좌표 계산이 전부 어긋난다 */
   .preview.fold .canvas-wrap{position:absolute;left:-99999px;top:0;width:320px;max-width:320px;}
@@ -416,7 +431,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
           <div class="row"><span class="name">확대</span><div class="stepper"><button onclick="imgAdj('imgZoom',-0.1)">−</button><span class="val" id="v-imgZoom">1.0<span class="u">x</span></span><button onclick="imgAdj('imgZoom',0.1)">+</button></div></div>
         </div>
         <div class="hint-sm" id="imgNone" style="margin-top:11px;display:none;">아직 사진이 없어요. <b>이미지 고르기</b>를 눌러 주세요.</div>
-        <div class="hint-sm" id="imgTip" style="margin-top:11px;">미리보기의 이미지를 <b>드래그하면 위치가 움직여요</b>(마우스 휠로 확대·축소). 아무리 옮기고 키워도 <b>빈 곳이 보이지 않게</b> 알아서 잡아 줍니다.</div>
+        <div class="hint-sm" id="imgTip" style="margin-top:11px;">미리보기의 이미지를 <b>드래그하면 위치가 움직여요</b>(폰은 두 손가락으로 벌리면 확대, 컴퓨터는 마우스 휠). 아무리 옮기고 키워도 <b>빈 곳이 보이지 않게</b> 알아서 잡아 줍니다.</div>
       </div>
       <div class="hint-sm" id="imgHint">카드 맨 위에 이미지를 가로 폭에 맞춰 넣어요.</div>
       <div class="hint-sm" id="imgBlock" style="display:none;">트위터 헤더(1500×500)는 세로가 너무 짧아 이미지를 넣을 수 없어요. 다른 크기를 고르면 다시 쓸 수 있습니다.</div>
@@ -1077,23 +1092,38 @@ function onHdrImage(input){
   let dg=null;
   const scaleNow=()=>{const w=document.querySelector('.canvas-wrap');
     const bw=w?w.getBoundingClientRect().width:0;return bw?bw/curSize().w:1;};
+  const pts=new Map();let pinch=null;
+  const dist=()=>{const a=[...pts.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);};
   box.addEventListener('pointerdown',e=>{
     if(!state.imgOn||!state.imgSrc)return;
     e.preventDefault();
-    dg={x:e.clientX,y:e.clientY,ox:state.imgOx,oy:state.imgOy,sc:scaleNow()};
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
     try{box.setPointerCapture(e.pointerId);}catch(_){}
+    if(pts.size===2){dg=null;pinch={d:dist()||1,z:state.imgZoom};}      /* 두 손가락 = 확대·축소 */
+    else if(pts.size===1)dg={x:e.clientX,y:e.clientY,ox:state.imgOx,oy:state.imgOy,sc:scaleNow()};
   });
   box.addEventListener('pointermove',e=>{
-    if(!dg)return;
+    if(!pts.has(e.pointerId))return;
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
     const g=imgGeom();if(!g)return;
     e.preventDefault();
+    if(pinch&&pts.size>=2){
+      const z=Math.max(1,Math.min(5,pinch.z*(dist()/pinch.d)));
+      state.imgZoom=+z.toFixed(3);imgUI();applyImg();return;
+    }
+    if(!dg)return;
     const dx=(e.clientX-dg.x)/dg.sc,dy=(e.clientY-dg.y)/dg.sc;
     const cl=v=>Math.max(0,Math.min(1,v));
     if(g.W>g.frameW)state.imgOx=cl(dg.ox-dx/(g.W-g.frameW));
     if(g.H>g.frameH)state.imgOy=cl(dg.oy-dy/(g.H-g.frameH));
     applyImg();
   });
-  ['pointerup','pointercancel'].forEach(ev=>box.addEventListener(ev,()=>{if(dg){dg=null;saveSettings();}}));
+  ['pointerup','pointercancel'].forEach(ev=>box.addEventListener(ev,e=>{
+    pts.delete(e.pointerId);
+    if(pts.size<2)pinch=null;
+    if(!pts.size&&dg){dg=null;}
+    if(pts.size===0)saveSettings();
+  }));
   box.addEventListener('wheel',e=>{
     if(!state.imgOn||!state.imgSrc)return;
     e.preventDefault();
@@ -1731,12 +1761,33 @@ document.addEventListener('keydown',e=>{
 /* ── 모바일 편의 ─────────────────────────────────────────────────────
    미리보기 접기: 화면 밖으로 밀어 둘 뿐 계속 그려 두기 때문에
    접은 채로 저장·복사해도 결과는 똑같다. */
-function toggleFold(){
+const LS_FOLD='excerpt.fold.v1';
+function setFold(f){
   const pv=document.getElementById('preview');if(!pv)return;
-  const f=pv.classList.toggle('fold');
+  pv.classList.toggle('fold',!!f);
   const b=document.getElementById('pvFold');if(b)b.textContent=f?'미리보기 펼치기':'미리보기 접기';
   requestAnimationFrame(()=>{scale();renderHL();});
 }
+function toggleFold(){
+  const pv=document.getElementById('preview');if(!pv)return;
+  const f=!pv.classList.contains('fold');
+  setFold(f);
+  try{localStorage.setItem(LS_FOLD,f?'1':'0');}catch(_){}
+}
+/* 폰 자판이 올라오면 화면이 절반으로 줄어든다. 그때 미리보기를 작게 하고
+   아래 고정 버튼을 감춰서, 쓰고 있는 칸이 가려지지 않게 한다. */
+(function(){
+  const vv=window.visualViewport;if(!vv)return;
+  let on=false;
+  const check=()=>{
+    const kb=(vv.height<window.innerHeight*0.78);
+    if(kb===on)return;
+    on=kb;document.body.classList.toggle('kb',kb);
+    requestAnimationFrame(()=>{scale();renderHL();});
+  };
+  vv.addEventListener('resize',check);
+  window.addEventListener('focusout',()=>setTimeout(check,120));
+})();
 /* 설정 카드 바로가기 — 위에 붙어 있는 미리보기 높이만큼 빼고 멈춘다 */
 function goTo(id){
   const el=document.getElementById(id);if(!el)return;
@@ -1788,7 +1839,10 @@ function baseSize(){return SIZES[state.sizeId]||SIZES.square;}
 function curSize(){const s=baseSize();return {w:s.w,h:liveH||s.h};}
 /* 미리보기 상자의 비율과, 모바일에서 높이로 폭을 묶을 때 쓰는 --ar 을 함께 지정 */
 function setCanvasBox(w,h){const el=document.querySelector('.canvas-wrap');if(!el)return;
-  el.style.aspectRatio=w+' / '+h;el.style.setProperty('--ar',(w/h).toFixed(4));}
+  const b=baseSize();
+  el.style.aspectRatio=w+' / '+h;
+  el.style.setProperty('--ar',(w/h).toFixed(4));
+  el.style.setProperty('--ar0',(b.w/b.h).toFixed(4));}
 /* 내용 높이(제목+본문+출처+세로 여백)를 재서 캔버스 길이를 맞춘다.
    규격보다 짧아지지는 않고, 길 때만 늘어난다. 늘어난 길이는 저장 이미지에도 그대로 반영된다. */
 function fitCanvas(){
@@ -1837,6 +1891,7 @@ function copyImg(){const b=document.getElementById('copyBtn'),o=b.textContent;b.
 
 (function(){const b=document.getElementById('pvFold');if(b)b.addEventListener('click',toggleFold);})();
 try{setDark(localStorage.getItem(LS_DARK)==='1');}catch(_){setDark(false);}
+try{if(localStorage.getItem(LS_FOLD)==='1')setFold(true);}catch(_){}
 loadSettings();
 buildSwatches();renderMyBg();renderMyHl();renderMyFc();renderTP();restoreUI();applyTheme();loadDraft();applyStyle();render();
 /* ResizeObserver가 없는 브라우저에서는 그 자리에서 멈춰 scale()이 아예 안 돌던 문제 — 감싸고 resize로 대체 */
