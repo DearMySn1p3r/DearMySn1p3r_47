@@ -222,24 +222,31 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
    컨트롤을 만지면서 카드가 어떻게 변하는지 바로 보이는 게 이 앱의 전부라,
    폰에서 미리보기가 위로 스크롤돼 사라지면 매번 올라갔다 내려와야 했다. */
 @media(max-width:880px){
-  .wrap{display:flex;flex-direction:column;align-items:stretch;gap:20px;max-width:640px;
-        padding:20px 16px calc(94px + env(safe-area-inset-bottom,0px));}
-  .masthead{order:-2;flex:0 0 auto;margin-bottom:0;padding-bottom:14px;}
+  /* 좌우 여백을 .wrap 이 아니라 각 덩어리(머리말·미리보기·설정)가 직접 갖는다.
+     그래야 미리보기 띠가 음수 여백이나 vw 계산 없이 '그냥 블록'으로 화면 폭을 꽉 채운다.
+     계산이 끼면 기기마다 몇 px씩 어긋나서 오른쪽에 틈이 생겼다. */
+  .wrap{display:flex;flex-direction:column;align-items:stretch;gap:20px;max-width:none;
+        padding:20px 0 calc(94px + env(safe-area-inset-bottom,0px));}
+  .masthead{order:-2;flex:0 0 auto;margin-bottom:0;padding:0 16px 14px;}
+  .panel{padding-left:16px;padding-right:16px;}
   /* 위에 고정되는 미리보기 띠는 화면 폭을 꽉 채워야 한다.
      -16px 처럼 고정값으로 밀면, 화면이 조금만 넓어도(본문이 640px에서 멈추고 가운데로 몰리면)
      오른쪽에 틈이 생겨 스크롤할 때 뒤 카드가 비쳐 나왔다.
      50vw − 50% = '본문 바깥까지의 거리'라서 어떤 폭에서도 정확히 화면 끝까지 닿는다. */
   .preview{order:-1;flex:0 0 auto;max-width:none;position:sticky;top:0;z-index:20;gap:9px;
-           margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);
-           padding:10px calc(50vw - 50%) 10px;background:var(--bg);
+           margin:0;padding:10px 0;background:var(--bg);
            border-bottom:1px solid var(--line);transition:background .35s,border-color .35s;}
+  .preview .pv-bar,.preview .qnav{padding-left:16px;padding-right:16px;}
+  .preview .canvas-wrap{margin-left:auto;margin-right:auto;}
   .panel{order:0;flex:0 0 auto;max-width:none;}
   /* 높이를 직접 자르면 비율이 깨지므로, 가로폭을 (높이 × 카드비율)로 묶는다.
      --ar 은 이미지 크기를 바꿀 때 JS가 넣어 준다. 세로로 늘어난 카드도 화면 안에 들어온다. */
   /* --ar0 = 늘어나기 전 기본 비율, --ar = 지금 비율.
      기본 비율로 폭을 잡아 두면 글을 한 줄 쓸 때마다 미리보기가 조금씩 줄어드는 일이 없다.
      카드가 많이 길어져 44svh를 넘을 때부터만 서서히 작아진다. */
-  .canvas-wrap{max-width:min(100%,calc(34vh * var(--ar0,1)),calc(44vh * var(--ar,1)));margin:0 auto;
+  /* 폭은 화면 안, 높이는 화면의 34%까지. --ar0 은 늘어나기 전 기본 비율이라
+     글을 쓸 때마다 미리보기 크기가 흔들리지 않는다. */
+  .canvas-wrap{max-width:min(calc(100vw - 32px),calc(34vh * var(--ar0,1)),calc(44vh * var(--ar,1)));
                box-shadow:0 10px 26px -14px rgba(44,40,35,.45);}
   /* 주소창이 보일 때 vh가 실제보다 커서 미리보기가 화면을 넘던 것 — 지원하면 svh로 */
   .canvas-wrap{max-width:min(100%,calc(34svh * var(--ar0,1)),calc(44svh * var(--ar,1)));}
@@ -271,8 +278,10 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
   .qnav{display:none;}
 }
 @media(max-width:560px){
-  .wrap{padding:16px 14px calc(94px + env(safe-area-inset-bottom,0px));gap:16px;}
+  .wrap{padding:16px 0 calc(94px + env(safe-area-inset-bottom,0px));gap:16px;}
+  .masthead,.panel{padding-left:14px;padding-right:14px;}
   .preview{padding-top:8px;padding-bottom:10px;}
+  .preview .pv-bar,.preview .qnav{padding-left:14px;padding-right:14px;}
   .actions{padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));}
   .card{padding:16px;border-radius:16px;}
   .brand .title{font-size:1.35rem;}
@@ -298,7 +307,9 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 }
 /* 아주 좁을 때(작은 폰 · 브라우저 확대를 켜 둔 경우)에도 가로로 삐져나오지 않게 */
 @media(max-width:330px){
-  .wrap{padding-left:10px;padding-right:10px;gap:14px;}
+  .masthead,.panel{padding-left:10px;padding-right:10px;}
+  .preview .pv-bar,.preview .qnav{padding-left:10px;padding-right:10px;}
+  .wrap{gap:14px;}
   .actions{padding-left:10px;padding-right:10px;}
   .card{padding:13px;border-radius:14px;}
   .saved-grid{grid-template-columns:repeat(3,1fr);}
@@ -339,7 +350,8 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
   .split{max-width:100%;}
 }
 @media(max-width:560px){
-  .wrap{padding-left:12px;padding-right:12px;}
+  .masthead,.panel{padding-left:12px;padding-right:12px;}
+  .preview .pv-bar,.preview .qnav{padding-left:12px;padding-right:12px;}
   .actions{padding-left:12px;padding-right:12px;}
   .card{padding:15px;}
 }
@@ -1881,27 +1893,40 @@ function hideZoomTip(){
    미리보기 카드는 원래 크기(1080px)로 그려 두고 축소해 보여 주는 것이라 건드리지 않는다. */
 (function(){
   let t=null;
-  function fix(){
-    const vw=document.documentElement.clientWidth||window.innerWidth;
-    if(!vw||document.documentElement.scrollWidth<=vw+1)return;
-    const zone=document.querySelectorAll('.panel *,.masthead *,.pv-bar *');
-    for(let i=0;i<zone.length;i++){
-      const el=zone[i];
-      if(el.closest('.canvas-wrap'))continue;
+  /* 한 요소만 화면 밖으로 나가도 페이지 전체가 그만큼 넓어지고,
+     위·아래 고정 띠는 화면 폭까지만 덮으므로 그 틈으로 뒤 내용이 비친다.
+     그래서 넘치는 요소를 모두 찾아 화면 안으로 묶는다(최대 3번 반복해 연쇄까지 정리). */
+  function pass(vw){
+    let hit=0;
+    const all=document.body.getElementsByTagName('*');
+    for(let i=0;i<all.length;i++){
+      const el=all[i];
+      if(el.dataset&&el.dataset.noclamp)continue;
+      if(el.id==='preview'||el.className&&(''+el.className).indexOf('actions')>=0)continue;
+      if(el.closest&&el.closest('.canvas-wrap'))continue;
       let r;try{r=el.getBoundingClientRect();}catch(_){continue;}
-      if(r.width>vw+1||r.right>vw+1){
+      if(r.width<1&&r.height<1)continue;
+      if(r.right>vw+1||r.width>vw+1){
         el.style.maxWidth='100%';
         el.style.boxSizing='border-box';
         if(el.scrollWidth>el.clientWidth+1)el.style.overflowX='auto';
+        hit++;
       }
     }
+    return hit;
+  }
+  function fix(){
+    const vw=document.documentElement.clientWidth||window.innerWidth;
+    if(!vw)return;
+    for(let n=0;n<3;n++){if(!pass(vw))break;}
   }
   const run=()=>{clearTimeout(t);t=setTimeout(fix,80);};
   window.addEventListener('resize',run);
   window.addEventListener('load',run);
   window.addEventListener('orientationchange',run);
+  try{window.visualViewport&&window.visualViewport.addEventListener('resize',run);}catch(_){}
   try{document.fonts&&document.fonts.ready&&document.fonts.ready.then(run);}catch(_){}
-  run();
+  run();setTimeout(fix,700);setTimeout(fix,1600);
 })();
 /* 폰 자판이 올라오면 화면이 절반으로 줄어든다. 그때 미리보기를 작게 하고
    아래 고정 버튼을 감춰서, 쓰고 있는 칸이 가려지지 않게 한다. */
