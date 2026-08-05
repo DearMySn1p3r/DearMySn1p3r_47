@@ -29,12 +29,10 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
 /* 폰에서 두 번 탭하면 화면이 확대되던 것을 막는다(손가락으로 벌리는 확대는 그대로 된다).
    당겨서 새로고침도 막는다 — 카드를 위아래로 끌다가 페이지가 새로고침되곤 했다. */
 body{touch-action:manipulation;overscroll-behavior-y:contain;}
-/* 손가락 기기에서는 글자가 16px보다 작은 입력칸을 누르면 화면이 확대된다(iOS) */
 @media(pointer:coarse){
-  .editor,textarea,input[type=text]{font-size:16px;}
   #quote,#imgbox,#imgel{-webkit-touch-callout:none;}   /* 길게 눌러도 '이미지 저장' 메뉴가 안 뜨게 */
 }
-body{font-family:'Pretendard',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;transition:background .35s,color .35s;min-height:100vh;}
+body{font-family:'Pretendard',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;transition:background .35s,color .35s;min-height:100vh;min-height:100svh;}
 .wrap{max-width:1180px;margin:0 auto;padding:38px 28px 80px;display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start;}
 
 .masthead{flex:1 1 100%;display:flex;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:4px;}
@@ -293,8 +291,55 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
   .swatches{grid-template-columns:repeat(3,1fr);}
   .saved-grid{grid-template-columns:repeat(4,1fr);}
 }
+/* 아주 좁을 때(작은 폰 · 브라우저 확대를 켜 둔 경우)에도 가로로 삐져나오지 않게 */
+@media(max-width:330px){
+  .wrap{padding-left:10px;padding-right:10px;gap:14px;}
+  .preview{margin-left:-10px;margin-right:-10px;padding-left:10px;padding-right:10px;}
+  .actions{padding-left:10px;padding-right:10px;}
+  .card{padding:13px;border-radius:14px;}
+  .saved-grid{grid-template-columns:repeat(3,1fr);}
+  .swatches,.fgrid,.ltp{grid-template-columns:repeat(2,1fr);}
+  .brand .title{font-size:1.2rem;}
+  .val{min-width:52px;}
+  .dirbtn,.stepper button{width:34px;height:34px;}
+  .stepper{gap:7px;}
+}
+/* 브라우저 확대(AA · ⋮ 메뉴)가 100%가 아닐 때 알려 주는 띠 */
+.zoomtip{display:none;align-items:flex-start;gap:10px;background:var(--accent-soft);
+         border:1px solid var(--accent);color:var(--ink);border-radius:12px;
+         padding:11px 12px;font-size:.76rem;line-height:1.55;margin-bottom:14px;}
+.zoomtip.on{display:flex;}
+.zoomtip button{flex:0 0 auto;border:none;background:transparent;color:var(--muted);
+                font-size:16px;line-height:1;cursor:pointer;padding:2px 4px;}
 /* 키보드로 이동할 때 지금 어디에 있는지 보이게 */
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+/* ── 아래 두 규칙은 반드시 맨 끝 ─────────────────────────────────────
+   iOS는 글자가 16px보다 작은 입력칸을 누르면 화면을 확대하고, 그 확대가 그대로 남는다.
+   앞쪽에 써 두면 뒤에 오는 규칙에 덮이므로 마지막에 못 박아 둔다. */
+@media(pointer:coarse){
+  .editor,textarea,input[type=text],input:not([type]),input[type=search],input[type=number]{
+    font-size:16px!important;line-height:1.7;}
+}
+/* 무엇이든 화면 폭을 넘지 못하게 한다. 한 요소만 삐져나와도 페이지 전체가
+   옆으로 밀려서 '화면이 커 보이고 손으로 줄여야 하는' 상태가 된다. */
+@media(max-width:880px){
+  html,body{overflow-x:clip;max-width:100%;}
+  .wrap,.panel,.preview,.masthead{max-width:100%;min-width:0;box-sizing:border-box;}
+  .card{max-width:100%;min-width:0;box-sizing:border-box;overflow-x:clip;}
+  .card *{max-width:100%;}
+  .canvas-wrap,.canvas-wrap *{max-width:none;}      /* 미리보기 안쪽은 예외(카드 원본 크기 그대로) */
+  .canvas-wrap{max-width:min(100%,calc(34svh * var(--ar0,1)),calc(44svh * var(--ar,1)));}
+  /* 한 줄에 다 안 들어가면 다음 줄로 — 삐져나오는 대신 */
+  .row{flex-wrap:wrap;row-gap:9px;}
+  .split{max-width:100%;}
+}
+@media(max-width:560px){
+  .wrap{padding-left:12px;padding-right:12px;}
+  .preview{margin-left:-12px;margin-right:-12px;padding-left:12px;padding-right:12px;}
+  .actions{padding-left:12px;padding-right:12px;}
+  .card{padding:15px;}
+}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;}
   .swatch:hover,.hsw:hover,.btn-save:hover{transform:none;}
@@ -311,6 +356,10 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
   </header>
 
   <section class="panel">
+    <div class="zoomtip" id="zoomTip">
+      <span>화면이 크게 보이나요? <b>브라우저 확대가 100%가 아닙니다.</b> 주소창의 <b>AA</b>(아이폰) 또는 <b>⋮ → 확대·축소</b>(안드로이드)에서 100%로 맞추면 폭에 딱 맞게 보여요.</span>
+      <button type="button" aria-label="닫기" onclick="hideZoomTip()">×</button>
+    </div>
 
     <div class="card" id="c-size">
       <div class="lbl">이미지 크기</div>
@@ -1774,6 +1823,83 @@ function toggleFold(){
   setFold(f);
   try{localStorage.setItem(LS_FOLD,f?'1':'0');}catch(_){}
 }
+/* ── 폰에서 화면이 멋대로 커지던 것 ────────────────────────────────
+   iOS·안드로이드는 입력칸을 누르면 그 칸에 맞춰 화면을 확대하고, 그 배율이 그대로 남는다.
+   그래서 다음에 들어와도 화면이 커 보여 매번 손으로 줄여야 했다.
+   글자 크기를 16px로 맞춰 두는 것(맨 아래 CSS)에 더해, 입력칸을 건드리는 동안만
+   확대를 잠가 둔다. 손을 떼면 다시 자유롭게 확대할 수 있다. */
+(function(){
+  const m=document.querySelector('meta[name=viewport]');if(!m)return;
+  try{if(!window.matchMedia||!matchMedia('(pointer:coarse)').matches)return;}catch(_){return;}
+  const base=m.getAttribute('content');
+  let locked=null;
+  const set=v=>{if(locked===v)return;locked=v;m.setAttribute('content',v?base+',maximum-scale=1':base);};
+  /* 누른 지점이 입력칸 안쪽일 수도 있으니 올라가며 찾는다 */
+  const isField=el=>{
+    if(!el||!el.closest)return false;
+    if(el.closest('[contenteditable="true"],[contenteditable=""]'))return true;
+    const f=el.closest('input,textarea');
+    if(!f)return false;
+    if(f.tagName==='TEXTAREA')return true;
+    return /^(text|search|number|email|tel|url|)$/i.test(f.getAttribute('type')||'');
+  };
+  /* 들어오는 순간 남아 있던 확대를 1배로 되돌린다 */
+  set(true);setTimeout(()=>set(false),600);
+  document.addEventListener('touchstart',e=>{if(isField(e.target))set(true);},{passive:true,capture:true});
+  document.addEventListener('focusin',e=>{if(isField(e.target))set(true);});
+  document.addEventListener('focusout',()=>setTimeout(()=>{
+    if(!isField(document.activeElement))set(false);
+  },350));
+})();
+/* 브라우저 자체 확대(사이트별로 기억된다)는 페이지가 바꿀 수 없다.
+   화면 폭보다 좁게 그려지고 있으면 끄는 법을 알려 준다. */
+const LS_ZTIP='excerpt.zoomtip.v1';
+function hideZoomTip(){
+  const t=document.getElementById('zoomTip');if(t)t.classList.remove('on');
+  try{localStorage.setItem(LS_ZTIP,'1');}catch(_){}
+}
+(function(){
+  try{
+    if(localStorage.getItem(LS_ZTIP)==='1')return;
+    if(!window.matchMedia||!matchMedia('(pointer:coarse)').matches)return;
+  }catch(_){return;}
+  const check=()=>{
+    const cw=document.documentElement.clientWidth,ch=document.documentElement.clientHeight;
+    const sw=(window.screen&&window.screen.width)||0;
+    if(!cw||!sw||cw>ch)return;                      /* 가로로 눕힌 상태는 판단하지 않는다 */
+    const t=document.getElementById('zoomTip');
+    if(t)t.classList.toggle('on',cw<sw*0.88);
+  };
+  window.addEventListener('load',()=>setTimeout(check,300));
+  window.addEventListener('resize',()=>setTimeout(check,300));
+  setTimeout(check,400);
+})();
+/* 그래도 무언가 삐져나오면(글꼴이 늦게 오거나 아주 좁은 기기) 실행 중에 찾아 묶는다.
+   미리보기 카드는 원래 크기(1080px)로 그려 두고 축소해 보여 주는 것이라 건드리지 않는다. */
+(function(){
+  let t=null;
+  function fix(){
+    const vw=document.documentElement.clientWidth||window.innerWidth;
+    if(!vw||document.documentElement.scrollWidth<=vw+1)return;
+    const zone=document.querySelectorAll('.panel *,.masthead *,.pv-bar *');
+    for(let i=0;i<zone.length;i++){
+      const el=zone[i];
+      if(el.closest('.canvas-wrap'))continue;
+      let r;try{r=el.getBoundingClientRect();}catch(_){continue;}
+      if(r.width>vw+1||r.right>vw+1){
+        el.style.maxWidth='100%';
+        el.style.boxSizing='border-box';
+        if(el.scrollWidth>el.clientWidth+1)el.style.overflowX='auto';
+      }
+    }
+  }
+  const run=()=>{clearTimeout(t);t=setTimeout(fix,80);};
+  window.addEventListener('resize',run);
+  window.addEventListener('load',run);
+  window.addEventListener('orientationchange',run);
+  try{document.fonts&&document.fonts.ready&&document.fonts.ready.then(run);}catch(_){}
+  run();
+})();
 /* 폰 자판이 올라오면 화면이 절반으로 줄어든다. 그때 미리보기를 작게 하고
    아래 고정 버튼을 감춰서, 쓰고 있는 칸이 가려지지 않게 한다. */
 (function(){
