@@ -225,8 +225,13 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
   .wrap{display:flex;flex-direction:column;align-items:stretch;gap:20px;max-width:640px;
         padding:20px 16px calc(94px + env(safe-area-inset-bottom,0px));}
   .masthead{order:-2;flex:0 0 auto;margin-bottom:0;padding-bottom:14px;}
+  /* 위에 고정되는 미리보기 띠는 화면 폭을 꽉 채워야 한다.
+     -16px 처럼 고정값으로 밀면, 화면이 조금만 넓어도(본문이 640px에서 멈추고 가운데로 몰리면)
+     오른쪽에 틈이 생겨 스크롤할 때 뒤 카드가 비쳐 나왔다.
+     50vw − 50% = '본문 바깥까지의 거리'라서 어떤 폭에서도 정확히 화면 끝까지 닿는다. */
   .preview{order:-1;flex:0 0 auto;max-width:none;position:sticky;top:0;z-index:20;gap:9px;
-           margin:0 -16px;padding:10px 16px 10px;background:var(--bg);
+           margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);
+           padding:10px calc(50vw - 50%) 10px;background:var(--bg);
            border-bottom:1px solid var(--line);transition:background .35s,border-color .35s;}
   .panel{order:0;flex:0 0 auto;max-width:none;}
   /* 높이를 직접 자르면 비율이 깨지므로, 가로폭을 (높이 × 카드비율)로 묶는다.
@@ -267,7 +272,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 }
 @media(max-width:560px){
   .wrap{padding:16px 14px calc(94px + env(safe-area-inset-bottom,0px));gap:16px;}
-  .preview{margin:0 -14px;padding:8px 14px 10px;}
+  .preview{padding-top:8px;padding-bottom:10px;}
   .actions{padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));}
   .card{padding:16px;border-radius:16px;}
   .brand .title{font-size:1.35rem;}
@@ -294,7 +299,6 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 /* 아주 좁을 때(작은 폰 · 브라우저 확대를 켜 둔 경우)에도 가로로 삐져나오지 않게 */
 @media(max-width:330px){
   .wrap{padding-left:10px;padding-right:10px;gap:14px;}
-  .preview{margin-left:-10px;margin-right:-10px;padding-left:10px;padding-right:10px;}
   .actions{padding-left:10px;padding-right:10px;}
   .card{padding:13px;border-radius:14px;}
   .saved-grid{grid-template-columns:repeat(3,1fr);}
@@ -336,7 +340,6 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 }
 @media(max-width:560px){
   .wrap{padding-left:12px;padding-right:12px;}
-  .preview{margin-left:-12px;margin-right:-12px;padding-left:12px;padding-right:12px;}
   .actions{padding-left:12px;padding-right:12px;}
   .card{padding:15px;}
 }
