@@ -116,7 +116,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 #quoteText *:not(.ln){font-size:inherit!important;font-family:inherit!important;line-height:inherit!important;}
 /* 대사·속마음·지문 줄 */
 #quoteText .ln{display:block;}
-#quoteText .ln.bar{border-left:.1em solid currentColor;}
+#quoteText .ln.bar{border-left:.2em solid currentColor;}
 /* 말풍선처럼 글자 길이만큼만 배경을 깐다 */
 #quoteText .ln.box{width:-moz-fit-content;width:fit-content;max-width:100%;border-radius:.42em;}
 #quoteText .ln .pre{opacity:.8;}
@@ -601,6 +601,14 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
           <div class="stepper"><button onclick="ltSize('n',-2)">−</button><span class="val" id="ltsz-n">90<span class="u">%</span></span><button onclick="ltSize('n',2)">+</button></div>
           <input type="color" class="color-input" id="ltc-n" oninput="ltCol('n',this.value)" title="지문 글자색">
           <button class="chip" onclick="ltCol('n','')">기본</button></div></div>
+        <div class="row" id="barRow" style="display:none;margin-top:15px;">
+          <span class="name">세로선</span>
+          <div class="ltrow">
+            <div class="stepper"><button onclick="barAdj(-0.04)">−</button><span class="val" id="v-barW">0.20<span class="u">em</span></span><button onclick="barAdj(0.04)">+</button></div>
+            <input type="color" class="color-input" id="barColor" oninput="setBarCol(this.value)" title="세로선 색">
+            <button class="chip" onclick="setBarCol('')">기본</button>
+          </div>
+        </div>
         <div class="row" id="bubbleRow" style="display:none;margin-top:15px;">
           <span class="name">말풍선 색</span>
           <div style="display:flex;gap:8px;align-items:center;">
@@ -662,9 +670,9 @@ const state={mode:'preset',presetId:'paper',savedIdx:-1,bgCss:'#F2F0EA',color:'d
 /* 줄 유형 기본값 — d:대사 m:속마음 n:지문
    size=본문 대비 %, op=진하기 %, w=0이면 본문 굵기 그대로, ind/gap=em */
 const LT_DEF={
-  d:{size:100,op:100,w:0,it:false,ind:0,gap:0.15,bar:false,col:'',bg:'',pre:''},
-  m:{size:96, op:78, w:0,it:true, ind:0,gap:0.15,bar:false,col:'',bg:'',pre:''},
-  n:{size:90, op:70, w:0,it:false,ind:0,gap:0.45,bar:false,col:'',bg:'',pre:''}
+  d:{size:100,op:100,w:0,it:false,ind:0,gap:0.15,bar:false,barW:0.2,barCol:'',col:'',bg:'',pre:''},
+  m:{size:96, op:78, w:0,it:true, ind:0,gap:0.15,bar:false,barW:0.2,barCol:'',col:'',bg:'',pre:''},
+  n:{size:90, op:70, w:0,it:false,ind:0,gap:0.45,bar:false,barW:0.2,barCol:'',col:'',bg:'',pre:''}
 };
 /* 캡처된 카드에서 대사·지문이 한눈에 갈리도록 만든 묶음 설정.
    하나만 바꾸면 셋(대사·속마음·지문)이 같이 바뀐다. */
@@ -676,7 +684,7 @@ const LT_PRESETS={
   box:{d:{size:102,op:100,w:400,gap:0.5,bg:'auto'},
        m:{size:94, op:74, w:0,it:true,gap:0.5},
        n:{size:84, op:60, w:0,gap:0.7}},
-  bar:{d:{size:104,op:100,w:400,gap:0.45,bar:true},
+  bar:{d:{size:104,op:100,w:400,gap:0.45,bar:true,barW:0.2},
        m:{size:94, op:74, w:0,it:true,gap:0.45},
        n:{size:84, op:60, w:0,gap:0.7}},
   mark:{d:{size:104,op:100,w:400,gap:0.45,pre:'\u2014'},
@@ -955,9 +963,16 @@ function paintQuote(){
       if(st.it)d.style.fontStyle='italic';
       if(st.col)d.style.color=st.col;
       if(st.gap&&i>0)d.style.marginTop=st.gap+'em';
-      let pad=st.ind+(st.bar?0.55:0)+(st.bg?0.55:0);
+      const bw=(+st.barW||0.2);
+      let pad=st.ind+(st.bar?bw+0.55:0)+(st.bg?0.55:0);
       if(pad)d.style.paddingLeft=pad+'em';
-      if(st.bar)d.classList.add('bar');
+      if(st.bar){
+        /* 색을 안 고르면 글자색을 따라간다(.ln.bar 의 currentColor 를 그대로 둔다) */
+        d.classList.add('bar');
+        d.style.borderLeftWidth=bw+'em';
+        d.style.borderLeftStyle='solid';
+        if(st.barCol)d.style.borderLeftColor=st.barCol;
+      }
       if(st.bg){
         d.classList.add('box');
         /* '자동'은 배경이 밝으면 살짝 어둡게, 어두우면 살짝 밝게 — 어느 배경에서도 뜬다 */
@@ -1035,12 +1050,30 @@ function ltRowsUI(){
 function ltUI(){
   ltRowsUI();
   document.querySelectorAll('#ltPreset button').forEach(b=>b.classList.toggle('on',b.dataset.p===state.ltPreset));
+  const st=state.lt.d,barRow=document.getElementById('barRow');
+  if(barRow){
+    barRow.style.display=st.bar?'flex':'none';
+    const v=document.getElementById('v-barW');
+    if(v)v.innerHTML=(+st.barW||0.2).toFixed(2)+'<span class="u">em</span>';
+    const c=document.getElementById('barColor');
+    if(c)c.value=st.barCol||(state.color==='light'?'#FFFFFF':'#2C2823');
+  }
   const bg=state.lt.d.bg,row=document.getElementById('bubbleRow');
   if(!row)return;
   row.style.display=bg?'flex':'none';
   document.getElementById('bubColor').value=(bg&&bg!=='auto')?bg:'#E8DFD2';
   document.getElementById('bubHex').textContent=(bg&&bg!=='auto')?bg.toUpperCase():'자동';
   document.getElementById('bubAuto').classList.toggle('on',bg==='auto');
+}
+/* 대사 왼쪽 세로선 — 굵기와 색 */
+function barAdj(d){
+  const st=state.lt.d;
+  st.barW=Math.max(0.06,Math.min(0.8,+((+st.barW||0.2)+d).toFixed(2)));
+  ltUI();repaintLines();
+}
+function setBarCol(v){
+  state.lt.d.barCol=v;
+  ltUI();repaintLines();
 }
 /* 말풍선 색 — 색을 직접 고르면 그 위의 글자색도 같이 뒤집어 준다(안 그러면 글자가 묻힌다) */
 function setBubble(v){
