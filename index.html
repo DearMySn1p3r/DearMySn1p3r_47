@@ -588,25 +588,28 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
           <button data-p="mark" onclick="applyLTPreset('mark',this)">대사 앞 기호</button>
           <button data-p="split" onclick="applyLTPreset('split',this)">색으로 가르기</button>
         </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:9px;">
+          <button class="chip" onclick="resetLineType()" title="크기·색·줄 효과를 처음 상태로">이 카드 전체 기본값으로</button>
+        </div>
         <div class="mini-lbl" style="margin:17px 0 9px;">유형별 크기 · 색</div>
         <div class="row"><span class="name">대사</span><div class="ltrow">
           <div class="stepper"><button onclick="ltSize('d',-2)">−</button><span class="val" id="ltsz-d">100<span class="u">%</span></span><button onclick="ltSize('d',2)">+</button></div>
           <input type="color" class="color-input" id="ltc-d" oninput="ltCol('d',this.value)" title="대사 글자색">
-          <button class="chip" onclick="ltCol('d','')">기본</button></div></div>
+          <button class="chip" id="ltdef-d" onclick="ltCol('d','')" title="대사 글자색을 기본으로">기본</button></div></div>
         <div class="row"><span class="name">속마음</span><div class="ltrow">
           <div class="stepper"><button onclick="ltSize('m',-2)">−</button><span class="val" id="ltsz-m">96<span class="u">%</span></span><button onclick="ltSize('m',2)">+</button></div>
           <input type="color" class="color-input" id="ltc-m" oninput="ltCol('m',this.value)" title="속마음 글자색">
-          <button class="chip" onclick="ltCol('m','')">기본</button></div></div>
+          <button class="chip" id="ltdef-m" onclick="ltCol('m','')" title="속마음 글자색을 기본으로">기본</button></div></div>
         <div class="row"><span class="name">지문</span><div class="ltrow">
           <div class="stepper"><button onclick="ltSize('n',-2)">−</button><span class="val" id="ltsz-n">90<span class="u">%</span></span><button onclick="ltSize('n',2)">+</button></div>
           <input type="color" class="color-input" id="ltc-n" oninput="ltCol('n',this.value)" title="지문 글자색">
-          <button class="chip" onclick="ltCol('n','')">기본</button></div></div>
+          <button class="chip" id="ltdef-n" onclick="ltCol('n','')" title="지문 글자색을 기본으로">기본</button></div></div>
         <div class="row" id="barRow" style="display:none;margin-top:15px;">
           <span class="name">세로선</span>
           <div class="ltrow">
             <div class="stepper"><button onclick="barAdj(-0.04)">−</button><span class="val" id="v-barW">0.20<span class="u">em</span></span><button onclick="barAdj(0.04)">+</button></div>
             <input type="color" class="color-input" id="barColor" oninput="setBarCol(this.value)" title="세로선 색">
-            <button class="chip" onclick="setBarCol('')">기본</button>
+            <button class="chip" id="barDef" onclick="setBarCol('')" title="세로선 색을 기본으로">기본</button>
           </div>
         </div>
         <div class="row" id="bubbleRow" style="display:none;margin-top:15px;">
@@ -706,7 +709,7 @@ function loadLS(k){try{return JSON.parse(localStorage.getItem(k))||[];}catch(e){
 function saveLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}
 let myBg=loadLS(LS_BG), myHl=loadLS(LS_HL);
 let settingsReady=false;
-const SET_KEYS=['font','fontSize','lineHeight','letterSpacing','padX','padY','align','valign','wrap','color','colorLocked','mode','presetId','bgCss','customMode','dir','sizeId','lineOn','ltPreset','ltColLock','lt','imgOn','imgSrc','imgAR','imgH','imgZoom','imgOx','imgOy'];
+const SET_KEYS=['font','fontSize','lineHeight','letterSpacing','padX','padY','align','valign','wrap','color','colorLocked','mode','presetId','bgCss','customMode','dir','savedIdx','sizeId','lineOn','ltPreset','ltColLock','lt','imgOn','imgSrc','imgAR','imgH','imgZoom','imgOx','imgOy'];
 function saveSettings(){if(!settingsReady)return;clearTimeout(saveSettings._t);saveSettings._t=setTimeout(()=>{
   const o={};SET_KEYS.forEach(k=>o[k]=state[k]);
   /* 이미지 배경은 data URL이라 용량이 크다. 저장 공간을 넘기면 설정이 통째로 안 남던 문제 —
@@ -729,6 +732,7 @@ function restoreUI(){
   document.querySelectorAll('.seg-wrap').forEach((b,i)=>{const on=(i===0&&state.wrap==='keep-all')||(i===1&&state.wrap==='break-all');b.classList.toggle('on',on);b.style.color=on?'var(--accent)':'var(--muted)';b.style.borderColor=on?'var(--accent)':'var(--line)';b.style.background=on?'var(--accent-soft)':'var(--field)';});
   syncColorSeg();
   ['fontSize','lineHeight','letterSpacing','padX','padY'].forEach(setVal);
+  restoreCustomInputs();
   const m=state.customMode;
   document.getElementById('cmSolid').classList.toggle('on',m==='solid');document.getElementById('cmGrad').classList.toggle('on',m==='grad');
   document.getElementById('solidWrap').style.display=m==='solid'?'flex':'none';document.getElementById('gradWrap').style.display=m==='grad'?'flex':'none';
@@ -756,7 +760,38 @@ function buildCustom(){
   return {css,base:avgHex(a,b)};
 }
 function setCustomMode(m){state.customMode=m;document.getElementById('cmSolid').classList.toggle('on',m==='solid');document.getElementById('cmGrad').classList.toggle('on',m==='grad');document.getElementById('cmImg').classList.remove('on');document.getElementById('solidWrap').style.display=m==='solid'?'flex':'none';document.getElementById('gradWrap').style.display=m==='grad'?'flex':'none';updateCustom(true);}
-function setDir(d,btn){state.dir=d;document.querySelectorAll('.dirbtn').forEach(x=>x.classList.remove('on'));btn.classList.add('on');updateCustom(false);}
+function setDir(d,btn){state.dir=d;syncDirBtns();if(btn){document.querySelectorAll('.dirbtn').forEach(x=>x.classList.remove('on'));btn.classList.add('on');}updateCustom(false);}
+function syncDirBtns(){
+  document.querySelectorAll('.dirbtn').forEach(b=>{
+    const oc=b.getAttribute('onclick')||'';
+    b.classList.toggle('on',oc.indexOf("'"+state.dir+"'")>=0);
+  });
+}
+/* 새로고침 뒤, 직접 지정해 둔 배경색을 색 고르개에도 되돌려 놓는다.
+   이걸 안 하면 고르개는 처음 색(#F2F0EA)을 가리키고 있어서,
+   단색 ⇄ 그라데이션을 한 번 누르거나 '＋ 저장'을 누르는 순간
+   배경이 쓰지도 않은 색으로 튀어 버렸다. */
+function restoreCustomInputs(){
+  syncDirBtns();
+  if(state.mode!=='custom')return;
+  const css=(state.bgCss||'').trim();
+  if(!css||/url\(/.test(css))return;                 /* 이미지 배경은 고르개와 무관 */
+  if(/^#[0-9a-f]{6}$/i.test(css)){
+    state.customMode='solid';
+    const c=document.getElementById('bgC1');if(c)c.value=css.toLowerCase();
+    const h=document.getElementById('bgHex');if(h)h.textContent=css.toUpperCase();
+    return;
+  }
+  const cols=css.match(/#[0-9a-f]{6}/gi);
+  if(!cols||cols.length<2)return;
+  state.customMode='grad';
+  const a=document.getElementById('bgGa'),b=document.getElementById('bgGb');
+  if(a)a.value=cols[0].toLowerCase();
+  if(b)b.value=cols[1].toLowerCase();
+  if(/radial-gradient/.test(css))state.dir='radial';
+  else{const m=css.match(/linear-gradient\(\s*([0-9.]+deg)/);if(m)state.dir=m[1];}
+  syncDirBtns();
+}
 function updateCustom(recolor){
   const r=buildCustom();
   if(state.customMode==='solid')document.getElementById('bgHex').textContent=document.getElementById('bgC1').value.toUpperCase();
@@ -1033,8 +1068,12 @@ function ltSize(t,d){
 }
 function ltCol(t,v){
   const st=state.lt[t];if(!st)return;
-  st.col=v;state.ltColLock=!!v||state.ltColLock;
-  if(!v&&!state.lt.d.col&&!state.lt.m.col&&!state.lt.n.col)state.ltColLock=false;
+  st.col=v;
+  /* 색을 고르는 것도, '기본'으로 되돌리는 것도 모두 '사용자가 직접 정했다'는 뜻이므로 잠근다.
+     예전에는 되돌릴 때 잠금이 풀려서, '색으로 가르기'가 배경을 다시 읽는 순간
+     (배경을 바꾸거나 새로고침할 때) 지운 색이 그대로 되살아났다.
+     — '기본' 버튼을 눌러도 아무 일이 없는 것처럼 보이던 원인. */
+  state.ltColLock=true;
   ltRowsUI();repaintLines();
 }
 function ltRowsUI(){
@@ -1045,6 +1084,9 @@ function ltRowsUI(){
     if(v)v.innerHTML=st.size+'<span class="u">%</span>';
     const c=document.getElementById('ltc-'+t);
     if(c)c.value=st.col||def;
+    /* 되돌릴 색이 없으면 버튼을 흐리게 — 눌렀는데 아무 변화가 없어 고장으로 보이던 것 */
+    const r=document.getElementById('ltdef-'+t);
+    if(r)r.disabled=!st.col;
   });
 }
 function ltUI(){
@@ -1057,6 +1099,8 @@ function ltUI(){
     if(v)v.innerHTML=(+st.barW||0.2).toFixed(2)+'<span class="u">em</span>';
     const c=document.getElementById('barColor');
     if(c)c.value=st.barCol||(state.color==='light'?'#FFFFFF':'#2C2823');
+    const r=document.getElementById('barDef');
+    if(r)r.disabled=!st.barCol;
   }
   const bg=state.lt.d.bg,row=document.getElementById('bubbleRow');
   if(!row)return;
@@ -1088,6 +1132,12 @@ function applyLTPreset(id,btn){
   state.lineOn=true;state.ltPreset=id;state.ltColLock=false;
   ['d','m','n'].forEach(k=>{state.lt[k]=Object.assign({},LT_DEF[k],p[k]||{});});
   if(id==='split')splitColors();
+  syncLineUI();ltUI();repaintLines();
+}
+/* 대사·지문 설정을 통째로 처음 상태로 — 크기·진하기·색·줄 효과 전부 */
+function resetLineType(){
+  state.lineOn=true;state.ltPreset='soft';state.ltColLock=false;
+  state.lt=JSON.parse(JSON.stringify(LT_DEF));
   syncLineUI();ltUI();repaintLines();
 }
 /* '색으로 가르기'는 배경 밝기를 보고 세 유형의 색을 잡는다 */
@@ -1158,7 +1208,7 @@ function setImgOn(v){
   if(v&&!state.imgSrc)pickHdrImage();
 }
 function pickHdrImage(){document.getElementById('hdrImgInput').click();}
-function clearHdrImage(){state.imgSrc='';applyImg();renderHL();saveSettings();}
+function clearHdrImage(){state.imgSrc='';imgUI();applyImg();renderHL();saveSettings();}   /* imgUI 를 빠뜨려 '사진 없음' 안내가 안 뜨던 것 */
 function resetHdrPos(){state.imgOx=0.5;state.imgOy=0.5;state.imgZoom=1;imgUI();applyImg();saveSettings();}
 function imgAdj(key,d){
   const lim={imgH:[8,120],imgZoom:[1,5]};
@@ -1453,10 +1503,12 @@ function getRange(){
 }
 function flashHint(){
   const h=document.getElementById('hlHint');if(!h)return;
-  const prev=h.dataset.base||h.textContent;h.dataset.base=prev;
+  /* 서식(굵게)이 든 안내문이라 textContent로 담아 두면 한 번 깜빡인 뒤 서식이 영영 사라졌다 */
+  if(!h.dataset.base)h.dataset.base=h.innerHTML;
+  const prev=h.dataset.base;
   h.textContent='칠할 글자를 먼저 드래그해 선택하세요(본문 칸 또는 미리보기).';
   h.style.color='var(--accent)';h.style.fontWeight='700';
-  clearTimeout(flashHint._t);flashHint._t=setTimeout(()=>{h.style.color='';h.style.fontWeight='';h.textContent=prev;},2200);
+  clearTimeout(flashHint._t);flashHint._t=setTimeout(()=>{h.style.color='';h.style.fontWeight='';h.innerHTML=prev;},2200);
 }
 function applyHL(color){
   const range=getRange();
