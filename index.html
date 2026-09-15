@@ -48,6 +48,18 @@ body{font-family:'Pretendard',system-ui,sans-serif;background:var(--bg);color:va
 .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);transition:background .35s,border-color .35s;}
 .lbl{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;}
 
+.foldbar{display:flex;justify-content:flex-end;gap:6px;margin-bottom:-6px;}
+.lbl{gap:8px;justify-content:flex-start;}
+.lbl > div,.lbl > button:not(.cfold){margin-left:auto;}
+.cfold{flex:0 0 auto;width:30px;height:30px;margin-left:4px;border-radius:8px;border:1px solid var(--line);background:var(--field);
+       color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;}
+.cfold:hover{color:var(--ink);border-color:var(--faint);}
+.cfold svg{transition:transform .2s;}
+.lbl.solo .cfold{margin-left:auto;}
+.lbl .ttl{cursor:pointer;}
+.card.folded .cbody{display:none;}
+.card.folded .lbl{margin-bottom:0!important;}
+.card.folded .cfold svg{transform:rotate(-90deg);}
 .swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
 .swatch{position:relative;aspect-ratio:1/1;border-radius:12px;cursor:pointer;border:none;padding:0;outline:2px solid transparent;outline-offset:2px;transition:outline-color .15s,transform .15s;box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);}
 .swatch:hover{transform:translateY(-2px);}
@@ -290,6 +302,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
   .editor,textarea,input[type=text]{font-size:16px;}
   .editor{min-height:112px;}
   .seg button,.mini-seg button,.chip,.lnchip,.pchip{min-height:38px;}
+  .cfold{width:38px;height:38px;}
   .fbtn{padding:14px 4px;}
 }
 /* 가로로 눕힌 폰처럼 세로가 짧을 땐 고정하면 화면을 다 먹는다 */
@@ -398,6 +411,11 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
       <button type="button" aria-label="닫기" onclick="hideZoomTip()">×</button>
     </div>
 
+    <div class="foldbar">
+      <button class="chip" type="button" onclick="foldAll(true)">메뉴 모두 접기</button>
+      <button class="chip" type="button" onclick="foldAll(false)">모두 펼치기</button>
+    </div>
+
     <div class="card" id="c-size">
       <div class="lbl">이미지 크기</div>
       <div class="seg" id="segSize" style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">
@@ -459,6 +477,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
     </div>
 
     <div class="card" id="c-layout">
+      <div class="lbl">배치</div>
       <div class="split">
         <div><div class="mini-lbl">글자색</div>
           <div class="seg" id="segColor"><button onclick="setColor('dark',this)">어둡게</button><button onclick="setColor('light',this)">밝게</button></div></div>
@@ -641,7 +660,6 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
           </div>
         </div>
         <div class="hint-sm" id="avTip" style="flex-basis:100%;">왼쪽 사진을 <b>끌면 위치</b>가, <b>휠·두 손가락</b>이나 ＋·−로 <b>크기</b>가 바뀌어요. 빈 곳은 보이지 않게 알아서 잡아 줘요.</div>
-      </div>
       </div>
       <div class="hint-sm" style="margin-top:8px;">줄을 고른 채 인물을 누르면 그 줄에 이름이 붙어요(이름 없는 모양이면 마지막에 쓴 말풍선·이름 모양으로 바뀝니다). 이름 앞 <b>동그라미를 누르면 색</b>이 바뀌어요.</div>
 
@@ -2391,6 +2409,7 @@ function hideZoomTip(){
 })();
 function goTo(id){
   const el=document.getElementById(id);if(!el)return;
+  if(el.classList.contains('folded'))setCardFold(el,false);
   const pv=document.getElementById('preview');
   const mobile=window.matchMedia?window.matchMedia('(max-width:880px)').matches:(window.innerWidth<=880);
   const off=(mobile&&pv)?pv.getBoundingClientRect().height+10:14;
@@ -2423,6 +2442,50 @@ function goTo(id){
   });
   window.addEventListener('pointerup',stop);window.addEventListener('pointercancel',stop);
 })();
+
+/* ── 메뉴 접기 ──────────────────────────────────────────────────────
+   카드마다 제목 줄만 남기고 나머지를 .cbody 로 감싸 접었다 폈다 한다.
+   접은 카드는 기억해 두고, 위 바로가기로 가면 자동으로 펼친다. */
+const LS_FOLDED='excerpt.folded.v1';
+const FOLD_SVG='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+function foldedIds(){try{const a=JSON.parse(localStorage.getItem(LS_FOLDED));return Array.isArray(a)?a:[];}catch(_){return [];}}
+function saveFolded(){
+  const ids=[...document.querySelectorAll('.panel > .card.folded')].map(c=>c.id).filter(Boolean);
+  try{localStorage.setItem(LS_FOLDED,JSON.stringify(ids));}catch(_){}
+}
+function setCardFold(card,f,keep){
+  if(!card)return;
+  card.classList.toggle('folded',!!f);
+  const b=card.querySelector(':scope > .lbl > .cfold');
+  if(b){b.setAttribute('aria-expanded',f?'false':'true');b.title=f?'펼치기':'접기';}
+  if(!keep)saveFolded();
+}
+function foldAll(f){document.querySelectorAll('.panel > .card').forEach(c=>setCardFold(c,f,true));saveFolded();}
+function initFolds(){
+  const saved=foldedIds();
+  document.querySelectorAll('.panel > .card').forEach(card=>{
+    const lbl=card.querySelector(':scope > .lbl');if(!lbl)return;
+    /* 제목 글자를 눌러도 접히게 span 으로 감싼다 */
+    const first=lbl.firstChild;
+    if(first&&first.nodeType===3&&first.nodeValue.trim()){
+      const t=document.createElement('span');t.className='ttl';t.textContent=first.nodeValue.trim();
+      lbl.replaceChild(t,first);
+    }else if(lbl.firstElementChild&&lbl.firstElementChild.tagName==='SPAN'){
+      lbl.firstElementChild.classList.add('ttl');
+    }
+    const body=document.createElement('div');body.className='cbody';
+    while(lbl.nextSibling)body.appendChild(lbl.nextSibling);
+    card.appendChild(body);
+    const b=document.createElement('button');b.type='button';b.className='cfold';b.innerHTML=FOLD_SVG;
+    b.addEventListener('click',()=>setCardFold(card,!card.classList.contains('folded')));
+    lbl.appendChild(b);
+    if(!lbl.querySelector(':scope > div, :scope > button:not(.cfold)'))lbl.classList.add('solo');
+    const ttl=lbl.querySelector(':scope > .ttl');
+    if(ttl)ttl.addEventListener('click',e=>{if(e.target.closest('button'))return;setCardFold(card,!card.classList.contains('folded'));});
+    setCardFold(card,saved.indexOf(card.id)>=0,true);
+  });
+}
+initFolds();
 
 const LS_DARK='excerpt.dark.v1';
 function setDark(d){document.body.classList.toggle('dark',d);document.getElementById('themeBtn').innerHTML=d?ICON_SUN:ICON_MOON;}
