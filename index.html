@@ -181,8 +181,12 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 .bs .sm{height:26px;display:flex;align-items:center;justify-content:center;color:var(--ink);font-size:.74rem;font-weight:400;position:relative;}
 .cav{width:20px;height:20px;flex:0 0 auto;border-radius:50%;background:center/cover no-repeat;box-shadow:inset 0 0 0 1px rgba(0,0,0,.1);}
 .avrow{display:none;align-items:center;gap:9px;flex-wrap:wrap;margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:12px;}
-.avrow .big{width:40px;height:40px;border-radius:50%;background:var(--field) center/cover no-repeat;flex:0 0 auto;
-            box-shadow:inset 0 0 0 1px var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.8rem;}
+.avrow .big{width:88px;height:88px;border-radius:50%;background-color:var(--field);flex:0 0 auto;
+            box-shadow:inset 0 0 0 1px var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:1.6rem;
+            touch-action:none;-webkit-user-select:none;user-select:none;}
+.avrow .big.can{cursor:grab;}
+.avrow .big.can:active{cursor:grabbing;}
+.avside{display:flex;flex-direction:column;gap:8px;min-width:0;flex:1 1 150px;}
 
 .hl-bar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:12px 0 4px;}
 .hl-bar .cap{font-size:.72rem;color:var(--muted);margin-right:2px;}
@@ -625,11 +629,19 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
       <input type="file" id="avInput" accept="image/*" style="display:none;" onchange="onAvatar(this)">
       <div class="avrow" id="avRow">
         <span class="big" id="avBig"></span>
-        <span style="font-size:.8rem;font-weight:600;" id="avName"></span>
-        <div style="display:flex;gap:6px;margin-left:auto;">
-          <button class="chip" onclick="_in('avInput').click()">프로필 사진 고르기</button>
-          <button class="chip" id="avDel" onclick="clearAvatar()">사진 빼기</button>
+        <div class="avside">
+          <span style="font-size:.8rem;font-weight:600;" id="avName"></span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="chip" onclick="_in('avInput').click()">사진 고르기</button>
+            <button class="chip" id="avDel" onclick="clearAvatar()">사진 빼기</button>
+          </div>
+          <div id="avEdit" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div class="stepper"><button onclick="avZoom(-0.1)">−</button><span class="val" id="v-avZ">1.0<span class="u">x</span></span><button onclick="avZoom(0.1)">+</button></div>
+            <button class="chip" onclick="avCenter()">가운데로</button>
+          </div>
         </div>
+        <div class="hint-sm" id="avTip" style="flex-basis:100%;">왼쪽 사진을 <b>끌면 위치</b>가, <b>휠·두 손가락</b>이나 ＋·−로 <b>크기</b>가 바뀌어요. 빈 곳은 보이지 않게 알아서 잡아 줘요.</div>
+      </div>
       </div>
       <div class="hint-sm" style="margin-top:8px;">줄을 고른 채 인물을 누르면 그 줄에 이름이 붙어요(이름 없는 모양이면 마지막에 쓴 말풍선·이름 모양으로 바뀝니다). 이름 앞 <b>동그라미를 누르면 색</b>이 바뀌어요.</div>
 
@@ -1125,7 +1137,7 @@ function paintQuote(){
           let css='flex:0 0 auto;width:'+sz+'em;height:'+sz+'em;margin-'+(me?'left':'right')+':.5em;border-radius:'+(B.avShape==='sq'?'.55em':'50%')+';';
           const hide=!cast||(B.once&&chain);
           if(hide)css+='height:0;';
-          else if(cast.av)css+='background-image:url("'+cast.av+'");background-size:cover;background-position:center;background-repeat:no-repeat;';
+          else if(cast.av)css+=avBg(cast);
           else{
             css+='background:'+col+';position:relative;';
             const ini=document.createElement('span');
@@ -1380,12 +1392,16 @@ function onAvatar(input){
   const url=URL.createObjectURL(file),img=new Image();
   img.onload=()=>{
     URL.revokeObjectURL(url);
-    /* 가운데를 정사각형으로 잘라 작게 줄인다 — 설정에 함께 저장되므로 가볍게 */
-    const S=200,m=Math.min(img.width,img.height);if(!m)return;
-    const cv=document.createElement('canvas');cv.width=cv.height=S;
+    /* 비율은 그대로 두고 짧은 변 기준으로 줄인다 — 나중에 옮기고 키울 여유를 남긴다.
+       설정에 함께 저장되므로 너무 크지 않게 */
+    let w=img.width,h=img.height;if(!w||!h)return;
+    const r=Math.min(1,360/Math.min(w,h),900/Math.max(w,h));
+    w=Math.max(1,Math.round(w*r));h=Math.max(1,Math.round(h*r));
+    const cv=document.createElement('canvas');cv.width=w;cv.height=h;
     const x=cv.getContext('2d');if(!x)return;
-    x.drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,S,S);
+    x.drawImage(img,0,0,w,h);
     try{c.av=cv.toDataURL('image/jpeg',0.85);}catch(_){alert('이미지를 사용할 수 없어요.');return;}
+    c.avAR=w/h;c.az=1;c.ax=0.5;c.ay=0.5;
     if(state.bk.av==='off')state.bk.av='you';
     bkUI();repaintLines();
   };
@@ -1393,6 +1409,83 @@ function onAvatar(input){
   img.src=url;
 }
 function clearAvatar(){const c=castOf(state.curCast);if(!c)return;c.av='';bkUI();repaintLines();}
+/* 프로필 사진 틀 — background-size·position 을 비율로만 다뤄서
+   아무리 옮기고 키워도 사진이 틀을 항상 꽉 채운다(빈 곳이 안 생긴다) */
+function avNum(v,d){v=+v;return isFinite(v)?v:d;}
+function avBg(c){
+  const ar=avNum(c.avAR,1)||1,z=Math.max(1,avNum(c.az,1));
+  const ax=Math.max(0,Math.min(1,avNum(c.ax,.5))),ay=Math.max(0,Math.min(1,avNum(c.ay,.5)));
+  const size=ar>=1?('auto '+(z*100).toFixed(2)+'%'):((z*100).toFixed(2)+'% auto');
+  return 'background-image:url("'+c.av+'");background-repeat:no-repeat;background-size:'+size+';background-position:'+(ax*100).toFixed(2)+'% '+(ay*100).toFixed(2)+'%;';
+}
+function paintAvBig(c){
+  const el=_in('avBig');if(!el||!c)return;
+  el.style.cssText=c.av?avBg(c):'';
+  el.style.borderRadius=state.bk.avShape==='sq'?'22px':'50%';
+  el.textContent=c.av?'':([...c.nm][0]||'');
+  el.classList.toggle('can',!!c.av);
+  const v=_in('v-avZ');if(v)v.innerHTML=Math.max(1,avNum(c.az,1)).toFixed(1)+'<span class="u">x</span>';
+}
+/* 끄는 동안은 가볍게 — 틀만 바로 바꾸고, 카드는 한 프레임에 한 번만 다시 그린다 */
+function avLive(){
+  const c=castOf(state.curCast);if(!c)return;
+  paintAvBig(c);
+  if(!avLive._r)avLive._r=requestAnimationFrame(()=>{avLive._r=0;paintQuote();renderHL();});
+}
+function avDone(){renderCast();saveSettings();}
+function avZoom(d){
+  const c=castOf(state.curCast);if(!c||!c.av)return;
+  c.az=Math.max(1,Math.min(4,+(avNum(c.az,1)+d).toFixed(2)));
+  avLive();avDone();
+}
+function avCenter(){
+  const c=castOf(state.curCast);if(!c||!c.av)return;
+  c.az=1;c.ax=0.5;c.ay=0.5;avLive();avDone();
+}
+(function(){
+  const el=_in('avBig');if(!el)return;
+  const pts=new Map();let dg=null,pinch=null;
+  const cur=()=>{const c=castOf(state.curCast);return (c&&c.av)?c:null;};
+  const geom=c=>{
+    const S=el.getBoundingClientRect().width||88,ar=avNum(c.avAR,1)||1,z=Math.max(1,avNum(c.az,1));
+    return {S:S,W:ar>=1?S*z*ar:S*z,H:ar>=1?S*z:S*z/ar};
+  };
+  const dist=()=>{const a=[...pts.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);};
+  const cl=v=>Math.max(0,Math.min(1,v));
+  el.addEventListener('pointerdown',e=>{
+    const c=cur();if(!c)return;
+    e.preventDefault();
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    try{el.setPointerCapture(e.pointerId);}catch(_){}
+    if(pts.size===2){dg=null;pinch={d:dist()||1,z:avNum(c.az,1)};}
+    else if(pts.size===1)dg={x:e.clientX,y:e.clientY,ax:avNum(c.ax,.5),ay:avNum(c.ay,.5)};
+  });
+  el.addEventListener('pointermove',e=>{
+    if(!pts.has(e.pointerId))return;
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    const c=cur();if(!c)return;
+    e.preventDefault();
+    if(pinch&&pts.size>=2){c.az=+Math.max(1,Math.min(4,pinch.z*(dist()/pinch.d))).toFixed(3);avLive();return;}
+    if(!dg)return;
+    const g=geom(c),dx=e.clientX-dg.x,dy=e.clientY-dg.y;
+    /* 오른쪽으로 끌면 사진도 오른쪽으로 — 남는 폭(W−S)에 대한 비율로 바꾼다 */
+    if(g.W>g.S+0.5)c.ax=cl(dg.ax-dx/(g.W-g.S));
+    if(g.H>g.S+0.5)c.ay=cl(dg.ay-dy/(g.H-g.S));
+    avLive();
+  });
+  ['pointerup','pointercancel'].forEach(ev=>el.addEventListener(ev,e=>{
+    if(!pts.has(e.pointerId))return;
+    pts.delete(e.pointerId);
+    if(pts.size<2)pinch=null;
+    if(pts.size===1){const c=cur(),p=[...pts.values()][0];if(c&&p)dg={x:p.x,y:p.y,ax:avNum(c.ax,.5),ay:avNum(c.ay,.5)};}
+    if(!pts.size){dg=null;avDone();}
+  }));
+  el.addEventListener('wheel',e=>{
+    if(!cur())return;
+    e.preventDefault();
+    avZoom(e.deltaY<0?0.1:-0.1);
+  },{passive:false});
+})();
 function renderCast(){
   const list=_in('castList');if(!list)return;
   list.innerHTML='';
@@ -1408,7 +1501,7 @@ function renderCast(){
       ci.addEventListener('input',e=>{c.col=e.target.value;dot.style.background=c.col;paintQuote();renderHL();saveSettings();});
       dot.appendChild(ci);b.appendChild(dot);
     }
-    if(c&&c.av){const t=document.createElement('span');t.className='cav';t.style.backgroundImage='url("'+c.av+'")';b.appendChild(t);}
+    if(c&&c.av){const t=document.createElement('span');t.className='cav';t.style.cssText=avBg(c);b.appendChild(t);}
     const n=document.createElement('span');n.className='nm';n.textContent=c?c.nm:'이름 없음';
     if(!c)n.style.color='var(--muted)';
     b.appendChild(n);
@@ -1454,9 +1547,10 @@ function bkUI(){
     ar.style.display=cc?'flex':'none';
     if(cc){
       _in('avName').textContent=cc.nm+' 프로필';
-      const bg=_in('avBig');bg.style.backgroundImage=cc.av?'url("'+cc.av+'")':'none';bg.textContent=cc.av?'':[...cc.nm][0];
-      bg.style.borderRadius=B.avShape==='sq'?'11px':'50%';
+      paintAvBig(cc);
       _in('avDel').disabled=!cc.av;
+      _in('avEdit').style.display=cc.av?'flex':'none';
+      _in('avTip').style.display=cc.av?'block':'none';
     }
   }
   renderCast();
