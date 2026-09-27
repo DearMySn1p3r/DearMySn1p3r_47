@@ -252,6 +252,10 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 #imgbox{width:100%;display:none;flex:0 0 auto;position:relative;overflow:hidden;border-radius:14px;
         background:rgba(0,0,0,.05);cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;}
 #imgbox:active{cursor:grabbing;}
+#txtcol{display:flex;flex-direction:column;min-width:0;width:100%;}
+.posseg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px;}
+.posseg button{display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 4px 7px;}
+.posseg svg{display:block;}
 #imgel{position:absolute;display:block;max-width:none;pointer-events:none;-webkit-user-drag:none;}
 #heading,#subtitle,#attr{-webkit-user-select:none;user-select:none;}
 #heading{font-weight:600;letter-spacing:.005em;font-synthesis:none;line-height:1.3;}
@@ -527,7 +531,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
     </div>
 
     <div class="card" id="c-img">
-      <div class="lbl">위 이미지
+      <div class="lbl">이미지
         <div class="mini-seg">
           <button id="imgOnBtn" onclick="setImgOn(true)">넣기</button>
           <button id="imgOffBtn" class="on" onclick="setImgOn(false)">안 함</button>
@@ -535,19 +539,22 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
       </div>
       <input type="file" id="hdrImgInput" accept="image/*" style="display:none;" onchange="onHdrImage(this)">
       <div id="imgBody" style="display:none;">
+        <div class="mini-lbl">위치</div>
+        <div class="seg posseg" id="segImgPos"><button type="button" data-p="top" onclick="setImgPos('top')"><svg width="30" height="22" viewBox="0 0 30 22" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="1" width="28" height="20" rx="3" opacity=".45"/><rect x="5" y="4" width="20" height="6" rx="1.5" fill="currentColor" stroke="none"/><line x1="6" y1="14" x2="24" y2="14" stroke-linecap="round"/><line x1="6" y1="17" x2="24" y2="17" stroke-linecap="round"/></svg><span>위</span></button><button type="button" data-p="bottom" onclick="setImgPos('bottom')"><svg width="30" height="22" viewBox="0 0 30 22" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="1" width="28" height="20" rx="3" opacity=".45"/><line x1="6" y1="5" x2="24" y2="5" stroke-linecap="round"/><line x1="6" y1="8" x2="24" y2="8" stroke-linecap="round"/><rect x="5" y="12" width="20" height="6" rx="1.5" fill="currentColor" stroke="none"/></svg><span>아래</span></button><button type="button" data-p="left" onclick="setImgPos('left')"><svg width="30" height="22" viewBox="0 0 30 22" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="1" width="28" height="20" rx="3" opacity=".45"/><rect x="4" y="4" width="9" height="14" rx="1.5" fill="currentColor" stroke="none"/><line x1="16" y1="7" x2="25" y2="7" stroke-linecap="round"/><line x1="16" y1="11" x2="25" y2="11" stroke-linecap="round"/><line x1="16" y1="15" x2="25" y2="15" stroke-linecap="round"/></svg><span>왼쪽</span></button><button type="button" data-p="right" onclick="setImgPos('right')"><svg width="30" height="22" viewBox="0 0 30 22" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="1" width="28" height="20" rx="3" opacity=".45"/><rect x="17" y="4" width="9" height="14" rx="1.5" fill="currentColor" stroke="none"/><line x1="5" y1="7" x2="14" y2="7" stroke-linecap="round"/><line x1="5" y1="11" x2="14" y2="11" stroke-linecap="round"/><line x1="5" y1="15" x2="14" y2="15" stroke-linecap="round"/></svg><span>오른쪽</span></button></div>
         <div style="display:flex;gap:7px;flex-wrap:wrap;">
           <button class="chip" onclick="pickHdrImage()">이미지 고르기</button>
           <button class="chip" onclick="resetHdrPos()">가운데로</button>
           <button class="chip" onclick="clearHdrImage()">제거</button>
         </div>
         <div style="margin-top:15px;">
-          <div class="row"><span class="name">높이</span><div class="stepper"><button onclick="imgAdj('imgH',-2)">−</button><span class="val" id="v-imgH">32<span class="u">%</span></span><button onclick="imgAdj('imgH',2)">+</button></div></div>
+          <div class="row imgSide"><span class="name">폭</span><div class="stepper"><button onclick="imgAdj('imgSW',-2)">−</button><span class="val" id="v-imgSW">38<span class="u">%</span></span><button onclick="imgAdj('imgSW',2)">+</button></div></div>
+                    <div class="row imgTB"><span class="name">높이</span><div class="stepper"><button onclick="imgAdj('imgH',-2)">−</button><span class="val" id="v-imgH">32<span class="u">%</span></span><button onclick="imgAdj('imgH',2)">+</button></div></div>
           <div class="row"><span class="name">확대</span><div class="stepper"><button onclick="imgAdj('imgZoom',-0.1)">−</button><span class="val" id="v-imgZoom">1.0<span class="u">x</span></span><button onclick="imgAdj('imgZoom',0.1)">+</button></div></div>
         </div>
         <div class="hint-sm" id="imgNone" style="margin-top:11px;display:none;">아직 사진이 없어요. <b>이미지 고르기</b>를 눌러 주세요.</div>
         <div class="hint-sm" id="imgTip" style="margin-top:11px;">미리보기의 이미지를 <b>드래그하면 위치가 움직여요</b>(폰은 두 손가락으로 벌리면 확대, 컴퓨터는 마우스 휠). 아무리 옮기고 키워도 <b>빈 곳이 보이지 않게</b> 알아서 잡아 줍니다.</div>
       </div>
-      <div class="hint-sm" id="imgHint">카드 맨 위에 이미지를 가로 폭에 맞춰 넣어요.</div>
+      <div class="hint-sm" id="imgHint">카드에 이미지를 넣어요. 위·아래·왼쪽·오른쪽 중 자리를 고를 수 있어요.</div>
       <div class="hint-sm" id="imgBlock" style="display:none;">트위터 헤더(1500×500)는 세로가 너무 짧아 이미지를 넣을 수 없어요. 다른 크기를 고르면 다시 쓸 수 있습니다.</div>
     </div>
 
@@ -698,8 +705,10 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
     <div class="canvas-wrap">
       <div id="canvas"><div id="bgLayer"></div><div class="veil"></div><div id="stage">
         <div id="imgbox"><img id="imgel" alt="" draggable="false"></div>
+        <div id="txtcol">
         <div id="titleblock"><div id="heading"></div><div id="subtitle"></div></div>
         <div id="quote"><div id="hlLayer"></div><div id="quoteText"></div></div><div id="attr"></div>
+        </div>
       </div></div>
     </div>
     <div class="pv-bar">
@@ -770,7 +779,7 @@ const BUBS=[
 const AC_COLS=['#5FB3AB','#8FB3E8','#E58FA8','#E0A45A','#A98BD6','#8A8378'];
 const CAST_COLS=['#8FB3E8','#E58FA8','#5FB3AB','#E0A45A','#A98BD6','#7FB77E','#D9826B'];
 Object.assign(state,{bk:Object.assign({},BK_DEF),cast:[],curCast:'',
-  imgOn:false,imgSrc:'',imgAR:1.5,imgH:32,imgZoom:1,imgOx:0.5,imgOy:0.5});
+  imgOn:false,imgSrc:'',imgAR:1.5,imgH:32,imgPos:'top',imgSW:38,imgSH:125,imgZoom:1,imgOx:0.5,imgOy:0.5});
 
 const editor=document.getElementById('editor');
 const _in=id=>document.getElementById(id);
@@ -781,7 +790,7 @@ function loadLS(k){try{return JSON.parse(localStorage.getItem(k))||[];}catch(e){
 function saveLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}
 let myBg=loadLS(LS_BG), myHl=loadLS(LS_HL);
 let settingsReady=false;
-const SET_KEYS=['font','fontSize','lineHeight','letterSpacing','padX','padY','align','valign','wrap','color','colorLocked','mode','presetId','bgCss','bgImgOp','bgBase','customMode','dir','savedIdx','sizeId','bk','cast','curCast','imgOn','imgSrc','imgAR','imgH','imgZoom','imgOx','imgOy'];
+const SET_KEYS=['font','fontSize','lineHeight','letterSpacing','padX','padY','align','valign','wrap','color','colorLocked','mode','presetId','bgCss','bgImgOp','bgBase','customMode','dir','savedIdx','sizeId','bk','cast','curCast','imgOn','imgSrc','imgAR','imgH','imgPos','imgSW','imgSH','imgZoom','imgOx','imgOy'];
 function saveSettings(){if(!settingsReady)return;clearTimeout(saveSettings._t);saveSettings._t=setTimeout(()=>{
   const o={};SET_KEYS.forEach(k=>o[k]=state[k]);
   /* 이미지 배경은 data URL이라 용량이 크다. 넘칠 땐 배경만 빼고 나머지 설정은 지킨다. */
@@ -808,6 +817,8 @@ function restoreUI(){
   document.getElementById('cmSolid').classList.toggle('on',m==='solid');document.getElementById('cmGrad').classList.toggle('on',m==='grad');
   document.getElementById('solidWrap').style.display=m==='solid'?'flex':'none';document.getElementById('gradWrap').style.display=m==='grad'?'flex':'none';
   normBK();bkUI();
+  if(['top','bottom','left','right'].indexOf(state.imgPos)<0)state.imgPos='top';
+  if(!(+state.imgSW>0))state.imgSW=42;if(!(+state.imgSH>0))state.imgSH=125;
   imgUI();applyImg();
 }
 
@@ -968,7 +979,7 @@ function applyStyle(){
 const quoteTextEl=document.getElementById('quoteText');
 const hlLayerEl=document.getElementById('hlLayer');
 function sync(){
-  buildLines();paintQuote();renderStrip();updateCount();fitCanvas();renderHL();scheduleDraft();
+  buildLines();paintQuote();renderStrip();updateCount();applyImg();renderHL();scheduleDraft();
   if(document.activeElement===editor)trackLines();
 }
 
@@ -1613,22 +1624,51 @@ function buildBk(){
 function imgGeom(){
   if(!state.imgSrc||!state.imgAR)return null;
   const s=baseSize();
-  const frameW=Math.max(40,s.w-state.padX*2);
-  const frameH=Math.max(24,Math.round(frameW*state.imgH/100));
+  const inner=Math.max(40,s.w-state.padX*2);
+  let frameW,frameH;
+  if(imgSide()){
+    frameW=Math.max(40,Math.round(inner*state.imgSW/100));
+    frameH=Math.max(24,Math.round(Math.max(s.h-state.padY*2,txtContentH())));
+  }else{
+    frameW=inner;
+    frameH=Math.max(24,Math.round(frameW*state.imgH/100));
+  }
   const ar=state.imgAR;
   const W=Math.max(frameW,frameH*ar)*state.imgZoom;
   return {frameW:frameW,frameH:frameH,W:Math.round(W),H:Math.round(W/ar)};
 }
 function imgBlocked(){return state.sizeId==='twitter';}
+/* 글 묶음의 실제 높이 — 늘어난 칸 높이가 아니라 안에 든 글의 높이 */
+function txtContentH(){
+  const tc=document.getElementById('txtcol');if(!tc)return 0;
+  let top=Infinity,bot=0;
+  [].forEach.call(tc.children,c=>{if(!c.offsetHeight)return;top=Math.min(top,c.offsetTop);bot=Math.max(bot,c.offsetTop+c.offsetHeight);});
+  return top===Infinity?0:bot-top;
+}
+function imgSide(){return state.imgPos==='left'||state.imgPos==='right';}
+function setImgPos(p){
+  if(['top','bottom','left','right'].indexOf(p)<0)return;
+  state.imgPos=p;imgUI();applyImg();renderHL();saveSettings();
+}
 function applyImg(){
   const box=document.getElementById('imgbox'),el=document.getElementById('imgel');
   if(!box||!el)return;
-  const g=imgGeom(),on=!!(state.imgOn&&state.imgSrc&&g&&!imgBlocked());
+  let g=imgGeom();const on=!!(state.imgOn&&state.imgSrc&&g&&!imgBlocked());
   box.style.display=on?'block':'none';
+  const st=document.getElementById('stage'),tc=document.getElementById('txtcol');
+  const pos=on?state.imgPos:'top',side=on&&imgSide();
+  st.style.flexDirection={top:'column',bottom:'column-reverse',left:'row',right:'row-reverse'}[pos]||'column';
+  st.style.alignItems='stretch';
+  tc.style.flex=side?'1 1 0':'';tc.style.width=side?'auto':'100%';
+  tc.style.justifyContent=side?({top:'flex-start',bottom:'flex-end'}[state.valign]||'center'):'';
   if(on){
     if(el.getAttribute('src')!==state.imgSrc)el.setAttribute('src',state.imgSrc);
+    box.style.width=side?g.frameW+'px':'100%';
+    if(side){const g2=imgGeom();if(g2)g=g2;}
     box.style.height=g.frameH+'px';
-    box.style.marginBottom=Math.round(state.fontSize*0.9)+'px';
+    const gap=Math.round(state.fontSize*0.9)+'px';
+    box.style.margin='0';
+    box.style[{top:'marginBottom',bottom:'marginTop',left:'marginRight',right:'marginLeft'}[pos]]=gap;
     el.style.width=g.W+'px';el.style.height=g.H+'px';
     el.style.left=Math.round((g.frameW-g.W)*state.imgOx)+'px';
     el.style.top=Math.round((g.frameH-g.H)*state.imgOy)+'px';
@@ -1647,6 +1687,12 @@ function imgUI(){
   const has=!!state.imgSrc;
   document.getElementById('imgNone').style.display=has?'none':'block';
   document.getElementById('imgTip').style.display=has?'block':'none';
+  document.querySelectorAll('#segImgPos button').forEach(b=>b.classList.toggle('on',b.dataset.p===state.imgPos));
+  const sd=imgSide();
+  document.querySelectorAll('#c-img .imgSide').forEach(r=>r.style.display=sd?'flex':'none');
+  document.querySelectorAll('#c-img .imgTB').forEach(r=>r.style.display=sd?'none':'flex');
+  const sw=document.getElementById('v-imgSW');
+  if(sw)sw.innerHTML=state.imgSW+'<span class="u">%</span>';
   const h=document.getElementById('v-imgH'),z=document.getElementById('v-imgZoom');
   if(h)h.innerHTML=state.imgH+'<span class="u">%</span>';
   if(z)z.innerHTML=(+state.imgZoom).toFixed(1)+'<span class="u">x</span>';
@@ -1660,7 +1706,7 @@ function pickHdrImage(){document.getElementById('hdrImgInput').click();}
 function clearHdrImage(){state.imgSrc='';imgUI();applyImg();renderHL();saveSettings();}
 function resetHdrPos(){state.imgOx=0.5;state.imgOy=0.5;state.imgZoom=1;imgUI();applyImg();saveSettings();}
 function imgAdj(key,d){
-  const lim={imgH:[8,120],imgZoom:[1,5]};
+  const lim={imgH:[8,120],imgZoom:[1,5],imgSW:[15,70],imgSH:[40,250]};
   let v=+((+state[key]+d).toFixed(2));
   v=Math.max(lim[key][0],Math.min(lim[key][1],v));
   state[key]=v;imgUI();applyImg();renderHL();saveSettings();
@@ -1788,7 +1834,7 @@ function render(){
   const attr=document.getElementById('attr');
   if(src||spk){let h='<span class="dash">— </span>';if(src)h+=esc(src);if(src&&spk)h+='<span class="sep">|</span>';if(spk)h+=esc(spk);attr.innerHTML=h;attr.style.display='block';}
   else{attr.innerHTML='';attr.style.display='none';}
-  fitCanvas();renderHL();
+  applyImg();renderHL();
 }
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
