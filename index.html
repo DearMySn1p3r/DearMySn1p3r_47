@@ -234,7 +234,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 .bs .sm{height:26px;display:flex;align-items:center;justify-content:center;color:var(--ink);font-size:.74rem;font-weight:400;position:relative;}
 .cav{width:20px;height:20px;flex:0 0 auto;border-radius:50%;background:center/cover no-repeat;box-shadow:inset 0 0 0 1px rgba(0,0,0,.1);}
 .avrow{display:none;align-items:center;gap:9px;flex-wrap:wrap;margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:12px;}
-.avrow .big{width:88px;height:88px;border-radius:50%;background-color:var(--field);flex:0 0 auto;
+.avrow .big{position:relative;overflow:hidden;cursor:pointer;width:88px;height:88px;border-radius:50%;background-color:var(--field);flex:0 0 auto;
             box-shadow:inset 0 0 0 1px var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:1.6rem;
             touch-action:none;-webkit-user-select:none;user-select:none;}
 .avrow .big.can{cursor:grab;}
@@ -901,6 +901,11 @@ textarea.code{min-height:220px;font-family:ui-monospace,SFMono-Regular,Menlo,Con
         <span class="big" id="avBig"></span>
         <div class="avside">
           <span style="font-size:.8rem;font-weight:600;" id="avName"></span>
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+            <span style="font-size:.74rem;color:var(--muted);flex:0 0 auto;">이름 색</span>
+            <span id="castColSw" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"></span>
+            <input type="color" class="color-input" id="castColEdit" title="이름 색 직접 지정" style="width:28px;height:28px;" oninput="setCastCol(this.value)">
+          </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             <button class="chip" onclick="_in('avInput').click()">사진 고르기</button>
             <button class="chip" id="avDel" onclick="clearAvatar()">사진 빼기</button>
@@ -912,7 +917,7 @@ textarea.code{min-height:220px;font-family:ui-monospace,SFMono-Regular,Menlo,Con
         </div>
         <div class="hint-sm" id="avTip" style="flex-basis:100%;">왼쪽 사진을 <b>끌면 위치</b>가, <b>휠·두 손가락</b>이나 ＋·−로 <b>크기</b>가 바뀌어요. 빈 곳은 보이지 않게 알아서 잡아 줘요.</div>
       </div>
-      <div class="hint-sm" style="margin-top:8px;">줄을 고른 채 인물을 누르면 그 줄에 이름이 붙어요(이름 없는 모양이면 마지막에 쓴 말풍선·이름 모양으로 바뀝니다). 이름 앞 <b>동그라미를 누르면 색</b>이 바뀌어요.</div>
+      <div class="hint-sm" style="margin-top:8px;">줄을 고른 채 인물을 누르면 그 줄에 이름이 붙어요(이름 없는 모양이면 마지막에 쓴 말풍선·이름 모양으로 바뀝니다). 이미 추가한 인물을 누르면 위 칸에서 <b>이름 색</b>과 프로필 사진을 바꿀 수 있어요(이름 앞 동그라미를 눌러도 돼요). 색만 바꾸려면 먼저 위의 ‘해제’로 줄 선택을 풀어 두세요.</div>
 
       <div class="bk-sub" style="margin-top:22px;">색 · 옵션</div>
       <div class="row"><span class="name">강조색</span><div class="ltrow">
@@ -1608,9 +1613,9 @@ function paintRange(a,b){
           else if(cast.av)css+=avBg(cast);
           else{
             css+='background:'+col+';position:relative;';
-            const ini=document.createElement('span');
-            ini.style.cssText='position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:.9em;font-weight:600;line-height:1;color:'+inkOn(col)+';';
-            ini.textContent=[...cast.nm][0]||'';av.appendChild(ini);
+            /* 사진이 없으면 이름 첫 글자 대신 사람 모양 — 저장 그림에서도 똑같이 나오도록 SVG가 아니라 동그라미 두 개로 그린다 */
+            css+='overflow:hidden;';
+            av.appendChild(avSil(inkOn(col)));
           }
           av.style.cssText=css;d.appendChild(av);
         }
@@ -1886,9 +1891,23 @@ function onAvatar(input){
   img.onerror=()=>{URL.revokeObjectURL(url);toast('이미지를 불러오지 못했어요.');};
   img.src=url;
 }
+function setCastCol(c){
+  const cc=castOf(state.curCast);if(!cc||!/^#[0-9a-f]{6}$/i.test(c||''))return;
+  cc.col=c;
+  bkUI();paintQuote();renderHL();saveSettings();
+}
 function clearAvatar(){const c=castOf(state.curCast);if(!c)return;c.av='';bkUI();repaintLines();}
 /* 프로필 사진 틀 — background-size·position 을 비율로만 다뤄서
    아무리 옮기고 키워도 사진이 틀을 항상 꽉 채운다(빈 곳이 안 생긴다) */
+/* 사진 없는 프로필 자리 — 머리·어깨 */
+function avSil(ink,ui){
+  const w=document.createElement('span');
+  w.style.cssText='position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;opacity:'+(ui?.3:.32)+';';
+  const h=document.createElement('span'),b=document.createElement('span');
+  h.style.cssText='position:absolute;left:31%;top:20%;width:38%;height:38%;border-radius:50%;background:'+ink+';';
+  b.style.cssText='position:absolute;left:14%;top:64%;width:72%;height:62%;border-radius:50%;background:'+ink+';';
+  w.appendChild(h);w.appendChild(b);return w;
+}
 function avNum(v,d){v=+v;return isFinite(v)?v:d;}
 function avBg(c){
   const ar=avNum(c.avAR,1)||1,z=Math.max(1,avNum(c.az,1));
@@ -1900,7 +1919,9 @@ function paintAvBig(c){
   const el=_in('avBig');if(!el||!c)return;
   el.style.cssText=c.av?avBg(c):'';
   el.style.borderRadius=state.bk.avShape==='sq'?'22px':'50%';
-  el.textContent=c.av?'':([...c.nm][0]||'');
+  el.innerHTML='';
+  if(!c.av)el.appendChild(avSil('var(--muted)',true));
+  el.title=c.av?'끌어서 위치 · 휠로 크기':'눌러서 사진 고르기';
   el.classList.toggle('can',!!c.av);
   const v=_in('v-avZ');if(v)v.innerHTML=Math.max(1,avNum(c.az,1)).toFixed(1)+'<span class="u">x</span>';
 }
@@ -1958,6 +1979,8 @@ function avCenter(){
     if(pts.size===1){const c=cur(),p=[...pts.values()][0];if(c&&p)dg={x:p.x,y:p.y,ax:avNum(c.ax,.5),ay:avNum(c.ay,.5)};}
     if(!pts.size){dg=null;avDone();}
   }));
+  /* 사진이 없을 때 누르면 바로 사진 고르기 */
+  el.addEventListener('click',()=>{if(!cur()&&castOf(state.curCast))_in('avInput').click();});
   el.addEventListener('wheel',e=>{
     if(!cur())return;
     e.preventDefault();
@@ -2024,7 +2047,19 @@ function bkUI(){
   if(ar){
     ar.style.display=cc?'flex':'none';
     if(cc){
-      _in('avName').textContent=cc.nm+' 프로필';
+      _in('avName').textContent=cc.nm;
+      /* 이름 색 — 고르면 이 인물이 붙은 모든 줄이 바로 바뀐다 */
+      const ce=_in('castColEdit');if(ce&&document.activeElement!==ce)ce.value=cc.col||'#8FB3E8';
+      const sw=_in('castColSw');
+      if(sw){
+        sw.innerHTML='';
+        const cols=CAST_COLS.concat(['#1A1A1A','#FFFFFF']);
+        cols.forEach(c=>{
+          const b=document.createElement('button');b.type='button';b.className='acsw';b.style.setProperty('--c',c);b.title=c;
+          b.classList.toggle('on',(cc.col||'').toLowerCase()===c.toLowerCase());
+          b.addEventListener('click',()=>setCastCol(c));sw.appendChild(b);
+        });
+      }
       paintAvBig(cc);
       _in('avDel').disabled=!cc.av;
       _in('avEdit').style.display=cc.av?'flex':'none';
