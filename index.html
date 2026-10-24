@@ -1476,7 +1476,8 @@ function paintRange(a,b){
         const nm=deco('span',(B.once&&chain)?'':nameTxt);
         nm.style.cssText='flex:0 0 auto;width:'+(tagW?(tagW*1.02+.2).toFixed(2)+'em':'0')+';font-size:.9em;white-space:nowrap;overflow:hidden;font-weight:500;color:'+col+';';
         const sp=deco('span');
-        sp.style.cssText='flex:0 0 auto;align-self:flex-start;width:0;height:1.05em;border-left:.06em solid currentColor;opacity:.28;margin:'+Math.max(0,(state.lineHeight-1.05)/2).toFixed(3)+'em '+(tagW?'.95em':'0')+' 0 '+(tagW?'.95em':'0')+';';
+        /* 구분선은 이름과 같은 색 — 굵기는 '세로선 굵기'를 따라간다(세로선보다 가늘게) */
+        sp.style.cssText='flex:0 0 auto;align-self:flex-start;width:0;height:1.05em;border-left:'+Math.max(.03,bw*.45).toFixed(3)+'em solid '+col+';opacity:.75;margin:'+Math.max(0,(state.lineHeight-1.05)/2).toFixed(3)+'em '+(tagW?'.95em':'0')+' 0 '+(tagW?'.95em':'0')+';';
         body=mkBody('flex:1 1 0;min-width:0;');
         d.appendChild(nm);d.appendChild(sp);d.appendChild(body);
         if(!tagW)sp.style.display='none';
