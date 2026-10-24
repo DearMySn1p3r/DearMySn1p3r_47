@@ -320,7 +320,15 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 #imgel{position:absolute;display:block;max-width:none;pointer-events:none;-webkit-user-drag:none;}
 #heading,#subtitle,#attr{-webkit-user-select:none;user-select:none;}
 #heading{font-weight:600;letter-spacing:.005em;font-synthesis:none;line-height:1.3;}
-#subtitle{opacity:.55;font-synthesis:none;line-height:1.35;font-weight:300;}
+#subtitle{font-synthesis:none;line-height:1.35;font-weight:300;}
+/* 제목·부제 부분 서식 — 기울임은 한글 서체에 기울임꼴이 없어 흉내 내도록 허용 */
+#heading i,#heading em,#subtitle i,#subtitle em{font-style:italic;font-synthesis:style;}
+#heading b,#heading strong{font-weight:800;}#subtitle b,#subtitle strong{font-weight:600;}
+#heading mark,#subtitle mark,#edHead mark,#edSub mark{color:inherit;padding:0 .08em;border-radius:.15em;}
+.editor.one{min-height:0!important;line-height:1.55;white-space:nowrap;overflow-x:auto;font-weight:500;}
+.editor.two{min-height:60px!important;line-height:1.55;}
+.editor.one br{display:none;}
+#edHead.is-empty:before,#edSub.is-empty:before{content:attr(data-ph);color:var(--faint);pointer-events:none;}
 #quote{overflow-wrap:anywhere;position:relative;font-family:'Pretendard',sans-serif;font-size:34px;line-height:1.72;letter-spacing:0;color:#2C2823;text-align:left;word-break:keep-all;white-space:pre-wrap;font-weight:300;font-synthesis:style weight;}
 #hlLayer{position:absolute;top:0;left:0;right:0;bottom:0;z-index:0;pointer-events:none;}
 #quoteText{position:relative;z-index:1;white-space:pre-wrap;word-break:inherit;-webkit-user-select:text;user-select:text;cursor:text;}
@@ -736,8 +744,35 @@ textarea.code{min-height:220px;font-family:ui-monospace,SFMono-Regular,Menlo,Con
 
     <div class="card" id="c-title">
       <div class="lbl">제목 · 부제 <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint);">선택</span></div>
-      <div class="fld"><input type="text" id="inHead" oninput="render()" placeholder="제목"></div>
-      <textarea class="sub" id="inSub" oninput="render()" placeholder="부제"></textarea>
+      <input type="hidden" id="inHead"><textarea id="inSub" hidden></textarea>
+      <div class="fld"><div class="editor one" id="edHead" contenteditable="true" spellcheck="false" data-ph="제목" role="textbox" aria-label="제목"></div></div>
+      <div class="editor two" id="edSub" contenteditable="true" spellcheck="false" data-ph="부제" role="textbox" aria-multiline="true" aria-label="부제"></div>
+      <div class="hl-bar" style="margin-top:12px;">
+        <span class="cap">글자색</span>
+        <button class="fsw" style="--c:#C0392B" data-tc="#C0392B" title="레드"></button>
+        <button class="fsw" style="--c:#D98324" data-tc="#D98324" title="앰버"></button>
+        <button class="fsw" style="--c:#2E7D52" data-tc="#2E7D52" title="그린"></button>
+        <button class="fsw" style="--c:#2464A8" data-tc="#2464A8" title="블루"></button>
+        <button class="fsw" style="--c:#6A4A9C" data-tc="#6A4A9C" title="퍼플"></button>
+        <button class="fsw" style="--c:#FFFFFF" data-tc="#FFFFFF" title="흰색"></button>
+        <button class="fsw" style="--c:#1A1A1A" data-tc="#1A1A1A" title="검정"></button>
+        <span class="hl-custom rnd" title="색 직접 지정"><input type="color" id="tcCustom" value="#C0392B"></span>
+      </div>
+      <div id="myTcWrap" style="display:none;gap:8px;flex-wrap:wrap;margin:2px 0 6px;"></div>
+      <div class="hl-bar" style="margin-top:6px;">
+        <span class="cap">형광펜</span>
+        <button class="hsw" style="--c:#F8C8D8" data-th="#F8C8D8" title="핑크"></button>
+        <button class="hsw" style="--c:#FCEBA0" data-th="#FCEBA0" title="옐로우"></button>
+        <button class="hsw" style="--c:#C6E8AE" data-th="#C6E8AE" title="그린"></button>
+        <button class="hsw" style="--c:#C7E0F4" data-th="#C7E0F4" title="블루"></button>
+        <button class="hsw" style="--c:#E7CCF5" data-th="#E7CCF5" title="라일락"></button>
+        <span class="hl-custom" title="색 직접 지정"><input type="color" id="thCustom" value="#ffe08a"></span>
+        <span style="width:1px;height:20px;background:var(--line);margin:0 2px;"></span>
+        <button class="emph" id="tBold" title="선택 부분 굵게" style="font-weight:800;">B</button>
+        <button class="emph" id="tItalic" title="선택 부분 기울임" style="font-style:italic;font-family:serif;">I</button>
+        <button class="chip" id="tPlain" title="선택한 부분(없으면 칸 전체)의 색·형광펜·굵게를 모두 지워요">서식 지우기</button>
+      </div>
+      <div class="hint-sm" id="tHint">제목·부제에서 바꿀 글자를 드래그한 뒤 <b>동그라미 = 글자색</b>, <b>네모 = 형광펜</b>, <b>B</b>·<i>I</i>를 누르세요. 아무것도 안 고른 채 누르면 그 칸 전체가 바뀌어요. 본문 카드에서 ‘＋ 색’으로 저장한 내 글자색도 여기 함께 나와요.</div>
       <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;">
         <button class="chip" onclick="saveTP()">＋ 이 작품 저장</button>
       </div>
@@ -1225,10 +1260,12 @@ function applyTheme(){
   const c=COLORS[state.color];
   const ib=inkBody(),it=inkTitle();
   ['quote','attr'].forEach(id=>document.getElementById(id).style.color=ib);
-  ['heading','subtitle'].forEach(id=>document.getElementById(id).style.color=it);
+  /* 부제는 흐리게 — 글자 전체를 반투명하게 하지 않고 기본 색만 옅게 해서, 따로 칠한 색은 또렷하게 나오게 */
+  document.getElementById('heading').style.color=it;
+  document.getElementById('subtitle').style.color=hexA(it,state.color==='light'?.7:.55);
   syncInkUI();
   document.getElementById('attr').style.opacity=c.op;
-  document.getElementById('subtitle').style.opacity=state.color==='light'?.7:.55;
+  document.getElementById('subtitle').style.opacity='';
   const isImg=/url\(/.test(state.bgCss||'');
   const ir=document.getElementById('imgRow');if(ir)ir.style.display=isImg?'flex':'none';
   const ci=document.getElementById('cmImg');if(ci)ci.classList.toggle('on',isImg);
@@ -2209,12 +2246,14 @@ function renderHL(){
   });
 }
 function render(){
+  syncTitleFields();
   const hd=document.getElementById('inHead').value.trim();
   const sbRaw=document.getElementById('inSub').value;
   const heading=document.getElementById('heading'),subtitle=document.getElementById('subtitle'),tb=document.getElementById('titleblock');
-  heading.textContent=hd;heading.style.display=hd?'block':'none';
+  if(!(cardEd&&cardEd.el===heading)){const h=hd?cleanRich(_in('edHead').innerHTML,false):'';if(heading.innerHTML!==h)heading.innerHTML=h;}
+  heading.style.display=hd?'block':'none';
   const hasSub=sbRaw.trim()!=='';
-  subtitle.innerHTML=hasSub?sbRaw.split('\n').map(esc).join('<br>'):'';
+  if(!(cardEd&&cardEd.el===subtitle)){const h=hasSub?cleanRich(_in('edSub').innerHTML,true).replace(/(<br>)+$/,''):'';if(subtitle.innerHTML!==h)subtitle.innerHTML=h;}
   subtitle.style.display=hasSub?'block':'none';
   heading.style.marginBottom=(hd&&hasSub)?'0.22em':'0';
   tb.style.display=(hd||hasSub)?'block':'none';
@@ -2516,6 +2555,7 @@ actHL(document.getElementById('fcSaveBtn'),()=>{
   if(!myFc.includes(c)){myFc.unshift(c);if(myFc.length>12)myFc.pop();saveLS(LS_FC,myFc);renderMyFc();}
 });
 function renderMyFc(){
+  renderMyTc();
   const row=document.getElementById('myFcRow'),wrap=document.getElementById('myFcWrap');
   if(!row||!wrap)return;
   wrap.innerHTML='';row.style.display=myFc.length?'block':'none';
@@ -2538,6 +2578,159 @@ function renderMyHl(){
     ['mousedown','touchstart'].forEach(ev=>x.addEventListener(ev,e=>e.stopPropagation()));
     x.addEventListener('click',(e)=>{e.stopPropagation();myHl.splice(i,1);saveLS(LS_HL,myHl);renderMyHl();});
     b.appendChild(x);wrap.appendChild(b);
+  });
+}
+
+
+/* ── 제목·부제 부분 서식 ─────────────────────────────────────────────
+   제목·부제 칸은 본문처럼 서식 있는 칸이다. 숨겨 둔 inHead·inSub 에는 같은 글이
+   ‘서식 없는 글’로 들어 있어 — 글자 수·{{title}}·작품 저장 이름 등은 그쪽을 쓴다. */
+const RICH_COL=/^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i;
+function cleanRich(html,allowBr){
+  const box=document.createElement('div');box.innerHTML=html||'';
+  const out=document.createDocumentFragment();
+  (function walk(src,dst){
+    [].slice.call(src.childNodes).forEach(n=>{
+      if(n.nodeType===3){dst.appendChild(document.createTextNode(n.nodeValue.replace(/ /g,' ')));return;}
+      if(n.nodeType!==1)return;
+      const t=n.tagName;
+      if(t==='BR'){dst.appendChild(allowBr?document.createElement('br'):document.createTextNode(' '));return;}
+      if(t==='DIV'||t==='P'){
+        if(dst.childNodes.length)dst.appendChild(allowBr?document.createElement('br'):document.createTextNode(' '));
+        walk(n,dst);return;}
+      let el=null;
+      if(t==='B'||t==='STRONG')el=document.createElement('b');
+      else if(t==='I'||t==='EM')el=document.createElement('i');
+      else if(t==='SPAN'&&n.getAttribute('data-fc')&&RICH_COL.test(n.getAttribute('data-fc'))){
+        el=document.createElement('span');el.setAttribute('data-fc',n.getAttribute('data-fc'));el.style.color=n.getAttribute('data-fc');}
+      else if(t==='MARK'&&n.getAttribute('data-c')&&RICH_COL.test(n.getAttribute('data-c'))){
+        el=document.createElement('mark');el.setAttribute('data-c',n.getAttribute('data-c'));el.style.backgroundColor=n.getAttribute('data-c');}
+      if(el){walk(n,el);if(el.textContent)dst.appendChild(el);}
+      else walk(n,dst);
+    });
+  })(box,out);
+  const w=document.createElement('div');w.appendChild(out);w.normalize();
+  return w.innerHTML;
+}
+function richText(el,allowBr){
+  /* <br> 은 줄바꿈으로 — innerText 는 화면에 안 보이는 칸에서 줄바꿈을 잃는다 */
+  let t='';
+  (function walk(n){n.childNodes.forEach(c=>{
+    if(c.nodeType===3)t+=c.nodeValue;
+    else if(c.nodeName==='BR')t+=allowBr?'\n':' ';
+    else if(c.nodeType===1){if((c.tagName==='DIV'||c.tagName==='P')&&t)t+=allowBr?'\n':' ';walk(c);}
+  });})(el);
+  t=t.replace(/ /g,' ');
+  return allowBr?t.replace(/\n+$/,''):t.replace(/\s+/g,' ').trim();
+}
+function syncTitleFields(){
+  const h=_in('edHead'),s=_in('edSub');if(!h||!s)return;
+  _in('inHead').value=richText(h,false);
+  _in('inSub').value=richText(s,true);
+  h.classList.toggle('is-empty',!_in('inHead').value);
+  s.classList.toggle('is-empty',!_in('inSub').value.trim());
+}
+/* 저장된 값 되살리기 — 서식 있는 값(hh·sh)이 없으면(예전 기록) 글만 넣는다 */
+function setTitleRich(h,s,hh,sh){
+  _in('edHead').innerHTML=(typeof hh==='string')?cleanRich(hh,false):esc(h||'');
+  _in('edSub').innerHTML=(typeof sh==='string')?cleanRich(sh,true):esc(s||'').replace(/\r?\n/g,'<br>');
+  syncTitleFields();
+}
+let tSel=null;            /* 제목·부제에서 마지막으로 고른 범위 {el, range} */
+document.addEventListener('selectionchange',()=>{
+  const s=getSelection();if(!s||!s.rangeCount)return;
+  const r=s.getRangeAt(0);
+  for(const id of ['edHead','edSub']){
+    const el=_in(id);
+    if(el&&el.contains(r.commonAncestorContainer)){tSel={el:el,range:r.collapsed?null:r.cloneRange(),last:el};return;}
+  }
+});
+function tFlash(msg){
+  const h=_in('tHint');if(!h)return;
+  if(!h.dataset.base)h.dataset.base=h.innerHTML;
+  h.textContent=msg;h.style.color='var(--accent)';h.style.fontWeight='700';
+  clearTimeout(tFlash._t);tFlash._t=setTimeout(()=>{h.style.color='';h.style.fontWeight='';h.innerHTML=h.dataset.base;},2400);
+}
+/* 고른 범위가 없으면 마지막에 있던 칸 전체 */
+function tTarget(){
+  if(tSel&&tSel.range&&tSel.el.contains(tSel.range.commonAncestorContainer))return {el:tSel.el,range:tSel.range};
+  const el=(tSel&&tSel.last)||null;
+  if(!el){tFlash('제목이나 부제 칸에서 바꿀 글자를 먼저 드래그해 주세요.');return null;}
+  if(!el.textContent.trim()){tFlash('칸이 비어 있어요. 글을 먼저 써 주세요.');return null;}
+  const r=document.createRange();r.selectNodeContents(el);return {el:el,range:r};
+}
+function tDone(el){
+  el.innerHTML=cleanRich(el.innerHTML,el.id==='edSub');
+  tSel={el:el,range:null,last:el};
+  try{getSelection().removeAllRanges();}catch(_){}
+  render();scheduleDraft();histTouch();
+}
+function tWrap(tag,attr,color){
+  const T=tTarget();if(!T)return;
+  pushUndo();
+  const frag=T.range.extractContents();
+  /* 안쪽의 같은 종류 서식은 벗겨서 새 색이 이긴다 */
+  frag.querySelectorAll&&frag.querySelectorAll(tag==='span'?'span[data-fc]':'mark').forEach(x=>{
+    const p=x.parentNode;while(x.firstChild)p.insertBefore(x.firstChild,x);p.removeChild(x);});
+  const w=document.createElement(tag);w.setAttribute(attr,color);
+  if(tag==='span')w.style.color=color;else w.style.backgroundColor=color;
+  w.appendChild(frag);T.range.insertNode(w);
+  tDone(T.el);
+}
+function tCmd(cmd){
+  const T=tTarget();if(!T)return;
+  pushUndo();
+  try{T.el.focus({preventScroll:true});}catch(_){T.el.focus();}
+  try{const s=getSelection();s.removeAllRanges();s.addRange(T.range);}catch(_){return;}
+  try{document.execCommand('styleWithCSS',false,false);}catch(_){}
+  try{document.execCommand(cmd,false,null);}catch(_){}
+  tDone(T.el);
+}
+function tPlain(){
+  const T=tTarget();if(!T)return;
+  pushUndo();
+  const frag=T.range.extractContents(),plain=document.createDocumentFragment();
+  (function walk(n){n.childNodes.forEach(c=>{
+    if(c.nodeType===3)plain.appendChild(document.createTextNode(c.nodeValue));
+    else if(c.nodeName==='BR')plain.appendChild(document.createElement('br'));
+    else if(c.nodeType===1)walk(c);});})(frag);
+  T.range.insertNode(plain);
+  tDone(T.el);
+}
+(function(){
+  const h=_in('edHead'),s=_in('edSub');if(!h||!s)return;
+  [h,s].forEach(el=>{
+    el.addEventListener('input',()=>{render();});
+    el.addEventListener('focus',()=>{tSel={el:el,range:null,last:el};});
+    el.addEventListener('paste',e=>{
+      e.preventDefault();
+      let t=(e.clipboardData||window.clipboardData).getData('text/plain')||'';
+      if(el===h)t=t.replace(/\s*[\r\n]+\s*/g,' ');
+      try{document.execCommand('insertText',false,t);}catch(_){}
+    });
+    el.addEventListener('keydown',e=>{
+      if(e.key!=='Enter'||e.isComposing||e.keyCode===229)return;
+      e.preventDefault();
+      if(el===h)return;                         /* 제목은 한 줄 */
+      let ok=false;try{ok=document.execCommand('insertLineBreak');}catch(_){}
+      if(!ok){try{document.execCommand('insertHTML',false,'<br>');}catch(_){}}
+    });
+  });
+  document.querySelectorAll('[data-tc]').forEach(b=>actHL(b,()=>tWrap('span','data-fc',b.dataset.tc)));
+  document.querySelectorAll('[data-th]').forEach(b=>actHL(b,()=>tWrap('mark','data-c',b.dataset.th)));
+  actHL(_in('tBold'),()=>tCmd('bold'));
+  actHL(_in('tItalic'),()=>tCmd('italic'));
+  actHL(_in('tPlain'),tPlain);
+  _in('tcCustom').addEventListener('change',e=>tWrap('span','data-fc',e.target.value));
+  _in('thCustom').addEventListener('change',e=>tWrap('mark','data-c',e.target.value));
+})();
+/* ‘내 글자색’으로 저장한 색을 제목 칸에서도 */
+function renderMyTc(){
+  const w=_in('myTcWrap');if(!w)return;
+  w.innerHTML='';w.style.display=myFc.length?'flex':'none';
+  myFc.forEach(c=>{
+    const b=document.createElement('button');b.className='fsw';b.style.setProperty('--c',c);b.title=c;
+    actHL(b,()=>tWrap('span','data-fc',c));w.appendChild(b);
   });
 }
 
@@ -2618,7 +2811,8 @@ function toggleQuotes(){
 const LS_TP='excerpt.tp.v1';
 let myTP=loadLS(LS_TP);
 function saveTP(){
-  const p={h:_in('inHead').value.trim(),s:_in('inSub').value.trim(),
+  syncTitleFields();
+  const p={h:_in('inHead').value.trim(),s:_in('inSub').value.trim(),hh:_in('edHead').innerHTML,sh:_in('edSub').innerHTML,
            src:_in('inSrc').value.trim(),spk:_in('inSpk').value.trim()};
   const cast=state.cast.length?JSON.parse(JSON.stringify(state.cast)):null;
   if(!p.h&&!p.s&&!p.src&&!p.spk&&!cast){toast('제목·부제·출처·화자·인물 중 하나는 채워 주세요.');return;}
@@ -2631,7 +2825,7 @@ function saveTP(){
   renderTP();
 }
 function applyTP(p){
-  _in('inHead').value=p.h||'';_in('inSub').value=p.s||'';
+  setTitleRich(p.h,p.s,p.hh,p.sh);
   _in('inSrc').value=p.src||'';_in('inSpk').value=p.spk||'';
   if(Array.isArray(p.cast)&&p.cast.length){
     state.cast=JSON.parse(JSON.stringify(p.cast));
@@ -2658,15 +2852,14 @@ function renderTP(){
 const LS_DRAFT='excerpt.draft.v1';
 function scheduleDraft(){histTouch();clearTimeout(scheduleDraft._t);scheduleDraft._t=setTimeout(saveDraft,500);}
 function saveDraft(){
-  saveLS(LS_DRAFT,{html:editor.innerHTML,h:_in('inHead').value,s:_in('inSub').value,
+  saveLS(LS_DRAFT,{html:editor.innerHTML,h:_in('inHead').value,s:_in('inSub').value,hh:_in('edHead').innerHTML,sh:_in('edSub').innerHTML,
                    src:_in('inSrc').value,spk:_in('inSpk').value,ov:lineOv});
 }
 function loadDraft(){
   let d=null;try{d=JSON.parse(localStorage.getItem(LS_DRAFT));}catch(_){d=null;}
   if(!d||typeof d!=='object')return;
   if(d.html){editor.innerHTML=d.html;sanitizeEditor();}
-  if(d.h)_in('inHead').value=d.h;
-  if(d.s)_in('inSub').value=d.s;
+  setTitleRich(d.h,d.s,d.hh,d.sh);
   if(d.src)_in('inSrc').value=d.src;
   if(d.spk)_in('inSpk').value=d.spk;
   /* 예전 버전의 '대사/속마음/지문' 기록('d','m','n')은 버린다 */
@@ -2722,7 +2915,7 @@ let hist=[],hfut=[],hLast=null,hMute=0,hT=null,histReady=false;
 function snapNow(){
   const st={};SET_KEYS.forEach(k=>st[k]=state[k]);
   return JSON.stringify({st:st,html:editor.innerHTML,ov:lineOv,
-    h:_in('inHead').value,s:_in('inSub').value,src:_in('inSrc').value,spk:_in('inSpk').value});
+    h:_in('inHead').value,s:_in('inSub').value,hh:_in('edHead').innerHTML,sh:_in('edSub').innerHTML,src:_in('inSrc').value,spk:_in('inSpk').value});
 }
 function histTouch(){if(hMute||!histReady)return;clearTimeout(hT);hT=setTimeout(histCommit,450);syncHistBtns();}
 function histCommit(){
@@ -2742,7 +2935,7 @@ function applySnap(str){
     SET_KEYS.forEach(k=>{if(o.st&&o.st[k]!==undefined)state[k]=o.st[k];});
     editor.innerHTML=o.html||'';
     pendingOv=Array.isArray(o.ov)?o.ov:null;
-    _in('inHead').value=o.h||'';_in('inSub').value=o.s||'';
+    setTitleRich(o.h,o.s,o.hh,o.sh);
     _in('inSrc').value=o.src||'';_in('inSpk').value=o.spk||'';
     selA=selB=-1;
     rebuildAll();
@@ -3244,10 +3437,10 @@ function finishCardEdit(keep){
     if(changed)commitLine(c.i,el);
     else sync();
   }else if(c.kind==='head'){
-    if(changed){_in('inHead').value=el.innerText.replace(/\s+/g,' ').trim();}
+    if(changed){pushUndo();_in('edHead').innerHTML=cleanRich(el.innerHTML,false);syncTitleFields();scheduleDraft();}
     render();
   }else if(c.kind==='sub'){
-    if(changed){_in('inSub').value=el.innerText.replace(/ /g,' ').replace(/\n+$/,'');}
+    if(changed){pushUndo();_in('edSub').innerHTML=cleanRich(el.innerHTML,true);syncTitleFields();scheduleDraft();}
     render();
   }
 }
@@ -3288,7 +3481,7 @@ function startLineEdit(ln,ev){
 function startTitleEdit(el,ev){
   const kind=el.id==='heading'?'head':'sub';
   if(tooSmall(state.fontSize*(kind==='head'?.88:.74))){
-    showTab('c-title');const f=_in(kind==='head'?'inHead':'inSub');try{f.focus();}catch(_){}return;}
+    showTab('c-title');const f=_in(kind==='head'?'edHead':'edSub');try{f.focus();}catch(_){}return;}
   beginEdit(el,kind,null,ev);
 }
 function goAttr(){
