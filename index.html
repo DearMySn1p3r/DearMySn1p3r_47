@@ -4130,8 +4130,94 @@ function scale(){const w=document.querySelector('.canvas-wrap'),c=document.getEl
   if(!w||!c)return;const bw=w.getBoundingClientRect().width;if(!bw)return;
   c.style.transform='scale('+(bw/curSize().w)+')';}
 
+/* ── 저장 안전장치 ─────────────────────────────────────────────────
+   저장 도구(html2canvas)는 1px보다 얇은 그라데이션 선·무늬를 0px로 반올림하다가
+   "createPattern … width or height of 0" 오류로 멈춘다(예: 0.3px 점선).
+   ① 저장용 복제본에서만 그런 선·무늬를 1px로 키워 그리고
+   ② 그래도 크기 0인 무늬가 생기면 멈추지 않고 그 무늬만 비워 둔다. */
+(function(){
+  try{
+    const P=CanvasRenderingContext2D.prototype,cp=P.createPattern;
+    let blank=null;
+    P.createPattern=function(img,rep){
+      try{
+        const w=img&&(img.naturalWidth!=null?img.naturalWidth:img.width),h=img&&(img.naturalHeight!=null?img.naturalHeight:img.height);
+        if(img&&(!w||!h)){
+          if(!blank){blank=document.createElement('canvas');blank.width=blank.height=1;}
+          return cp.call(this,blank,rep);
+        }
+      }catch(_){}
+      return cp.call(this,img,rep);
+    };
+    const G=CanvasGradient.prototype,ac=G.addColorStop;
+    G.addColorStop=function(o,c){
+      if(!isFinite(o))return;
+      try{return ac.call(this,Math.max(0,Math.min(1,o)),c);}catch(_){}
+    };
+  }catch(_){}
+})();
+/* 저장 도구는 repeating-linear-gradient 를 못 그린다(괘선·점선·줄무늬가 통째로 빠짐).
+   가로·세로 방향이면 한 번 반복되는 길이만큼의 linear-gradient + 무늬 크기로 바꿔 준다 — 보이는 모양은 같다. */
+function splitTop(s){const o=[];let d=0,c='';for(const ch of s){if(ch==='(')d++;else if(ch===')')d--;if(ch===','&&!d){o.push(c.trim());c='';continue;}c+=ch;}if(c.trim())o.push(c.trim());return o;}
+function convRepeat(layer){
+  const m=/^repeating-linear-gradient\((.*)\)$/i.exec(layer.trim());if(!m)return null;
+  const args=splitTop(m[1]);if(args.length<2)return null;
+  let dir='180deg',i=0;
+  if(/^(-?[\d.]+deg|to\s+\w+(\s+\w+)?)$/i.test(args[0])){dir=args[0].toLowerCase();i=1;}
+  const map={'to right':'90deg','to left':'270deg','to bottom':'180deg','to top':'0deg'};
+  if(map[dir])dir=map[dir];
+  let ang=parseFloat(dir);if(!isFinite(ang))return null;
+  ang=((ang%360)+360)%360;
+  const horiz=(ang===90||ang===270),vert=(ang===0||ang===180);
+  if(!horiz&&!vert)return null;
+  const stops=[];
+  for(;i<args.length;i++){
+    const a=args[i];const mm=/^((?:rgba?|hsla?)\([^)]*\)|#[0-9a-f]+|[a-z]+)\s*(.*)$/i.exec(a);if(!mm)return null;
+    const ps=mm[2].trim()?mm[2].trim().split(/\s+/):[];
+    if(!ps.length||ps.some(p=>!/^-?[\d.]+px$/.test(p)))return null;
+    ps.forEach(p=>stops.push([mm[1],parseFloat(p)]));
+  }
+  const P=stops[stops.length-1][1]-stops[0][1];if(!(P>0))return null;
+  const s0=stops[0][1];
+  const g='linear-gradient('+ang+'deg, '+stops.map(s=>s[0]+' '+((s[1]-s0)/P*100).toFixed(3)+'%').join(', ')+')';
+  const t=Math.max(1,P).toFixed(3)+'px';
+  return {img:g,size:horiz?(t+' 100%'):('100% '+t)};
+}
+function fixRepeatGrad(el,cs){
+  const bi=cs.backgroundImage;if(!/repeating-linear-gradient/i.test(bi))return;
+  const L=splitTop(bi),S=splitTop(cs.backgroundSize||'auto');
+  let changed=false;
+  const imgs=L.map((l,k)=>{const r=convRepeat(l);if(!r)return l;changed=true;S[k]=r.size;return r.img;});
+  if(!changed)return;
+  while(S.length<imgs.length)S.push(S[S.length-1]||'auto');
+  el.style.backgroundImage=imgs.join(', ');
+  el.style.backgroundSize=S.slice(0,imgs.length).join(', ');
+}
+function fixTinyBgs(doc,rootId){
+  const win=doc.defaultView||window,root=doc.getElementById(rootId);
+  if(!root)return;
+  const all=[root].concat([].slice.call(root.querySelectorAll('*')));
+  all.forEach(el=>{
+    let cs;try{cs=win.getComputedStyle(el);}catch(_){return;}
+    if(!cs.backgroundImage||!/gradient/i.test(cs.backgroundImage))return;
+    fixRepeatGrad(el,cs);
+    try{cs=win.getComputedStyle(el);}catch(_){return;}
+    const bi=cs.backgroundImage;
+    const r=el.getBoundingClientRect();
+    if(r.width>0&&r.width<1){el.style.width='1px';el.style.minWidth='1px';}
+    if(r.height>0&&r.height<1){el.style.height='1px';el.style.minHeight='1px';}
+    const bs=cs.backgroundSize||'';
+    /* 크기가 0인 무늬는 그릴 게 없다 */
+    if(bs.split(',').some(t=>/(^|\s)0px(\s|$)/.test(t.trim()))){el.style.backgroundImage='none';return;}
+    if(/px/.test(bs)){
+      const nb=bs.replace(/(\d*\.?\d+)px/g,(m,n)=>(+n>0&&+n<1)?'1px':m);
+      if(nb!==bs)el.style.backgroundSize=nb;
+    }
+  });
+}
+
 /* ── 저장 · 복사 ── */
-function shot(){const s=curSize();return html2canvas(document.getElementById('canvas'),{scale:1,useCORS:true,backgroundColor:null,width:s.w,height:s.h,onclone:d=>{d.getElementById('canvas').style.transform='scale(1)';d.querySelectorAll('[contenteditable]').forEach(x=>x.removeAttribute('contenteditable'));const cw=d.querySelector('.canvas-wrap');if(cw)cw.classList.remove('editmode');d.getElementById('stage').classList.remove('pg-l','pg-r','pg-bl','pg-br');d.querySelectorAll('#quoteText .pick').forEach(e=>e.classList.remove('pick'));}});}
+function shot(){const s=curSize();return html2canvas(document.getElementById('canvas'),{scale:1,useCORS:true,backgroundColor:null,width:s.w,height:s.h,onclone:d=>{d.getElementById('canvas').style.transform='scale(1)';fixTinyBgs(d,'canvas');d.querySelectorAll('[contenteditable]').forEach(x=>x.removeAttribute('contenteditable'));const cw=d.querySelector('.canvas-wrap');if(cw)cw.classList.remove('editmode');d.getElementById('stage').classList.remove('pg-l','pg-r','pg-bl','pg-br');d.querySelectorAll('#quoteText .pick').forEach(e=>e.classList.remove('pick'));}});}
 function canvasBlob(cv){return new Promise((res,rej)=>{try{cv.toBlob(b=>b?res(b):rej(new Error('blob')),'image/png');}catch(e){rej(e);}});}
 function nextFrame(){return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r())));}
 function stamp(){const d=new Date(),z=n=>String(n).padStart(2,'0');
