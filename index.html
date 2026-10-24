@@ -4193,6 +4193,114 @@ function fixRepeatGrad(el,cs){
   el.style.backgroundImage=imgs.join(', ');
   el.style.backgroundSize=S.slice(0,imgs.length).join(', ');
 }
+/* ── 저장 도구(html2canvas)가 놓치는 것 바로잡기 ──────────────────────
+   · 움직이는 효과(애니메이션): 저장할 때 복사본에서 처음부터 다시 시작돼, 0에서 자라나는 선·
+     서서히 나타나는 글자 같은 것이 빈 채로 찍혔다 → 지금 화면에 보이는 모습 그대로 멈춰서 찍는다.
+   · 최신 색 표기(color-mix · oklch · lab 등): 저장 도구가 읽지 못해 저장이 통째로 실패했다 → rgb로 바꾼다.
+   · 높이·폭이 0인 상자에 그림자로만 그린 선: 그려지지 않았다 → 1px 선으로 바꾼다. */
+const H2C_BASE = ['opacity','transform','translate','rotate','scale','width','height','min-width','max-width','min-height','max-height',
+  'left','right','top','bottom','margin-left','margin-top','margin-right','margin-bottom','background-color','background-image',
+  'background-position','background-size','color','border-top-color','border-right-color','border-bottom-color','border-left-color',
+  'border-top-width','border-right-width','border-bottom-width','border-left-width','box-shadow','text-shadow','clip-path',
+  'filter','visibility','letter-spacing','fill','stroke','stroke-dasharray','stroke-dashoffset','outline-color','text-decoration-color'];
+const H2C_COLOR_PROPS = ['color','background-color','background-image','border-top-color','border-right-color','border-bottom-color',
+  'border-left-color','box-shadow','text-shadow','outline-color','text-decoration-color','fill','stroke','caret-color','column-rule-color'];
+const H2C_BADCOLOR = /(^|[^-\w])(color-mix|color|oklch|oklab|lch|lab|hwb)\(/i;
+let h2cCv = null; const h2cCache = {};
+function h2cRgb(str){
+  if(h2cCache[str]) return h2cCache[str];
+  try{
+    if(!h2cCv){ h2cCv = document.createElement('canvas'); h2cCv.width = h2cCv.height = 1; }
+    const x = h2cCv.getContext('2d', { willReadFrequently:true });
+    x.clearRect(0,0,1,1); x.fillStyle = '#000'; x.fillStyle = str; x.fillRect(0,0,1,1);
+    const d = x.getImageData(0,0,1,1).data;
+    return (h2cCache[str] = d[3] === 0 ? 'rgba(0,0,0,0)' : 'rgba(' + d[0] + ',' + d[1] + ',' + d[2] + ',' + (d[3]/255).toFixed(3) + ')');
+  }catch(e){ return 'rgba(0,0,0,0)'; }
+}
+/* 값 안의 color(…) · oklch(…) 같은 부분만 골라 rgba(…)로 바꾼다 */
+function h2cFixColors(v){
+  if(!v || !H2C_BADCOLOR.test(v)) return v;
+  let out = '', i = 0;
+  while(i < v.length){
+    const m = /(color-mix|color|oklch|oklab|lch|lab|hwb)\(/ig; m.lastIndex = i;
+    const r = m.exec(v);
+    if(!r){ out += v.slice(i); break; }
+    const pre = v[r.index - 1];
+    if(pre && /[-\w]/.test(pre)){ out += v.slice(i, r.index + r[0].length); i = r.index + r[0].length; continue; }
+    let d = 0, j = r.index + r[1].length;
+    for(; j < v.length; j++){ if(v[j] === '(') d++; else if(v[j] === ')'){ d--; if(!d) break; } }
+    out += v.slice(i, r.index) + h2cRgb(v.slice(r.index, j + 1));
+    i = j + 1;
+  }
+  return out;
+}
+function h2cPrep(rootEl){
+  const recs = [], doc = rootEl && rootEl.ownerDocument;
+  const win = doc && doc.defaultView;
+  if(rootEl) rootEl.setAttribute('data-h2c-root', '1');
+  try{
+    if(doc && doc.getAnimations){
+      let n = 0;
+      doc.getAnimations().forEach(a => {
+        const ef = a.effect, el = ef && ef.target;
+        if(!el || ef.pseudoElement || !(el === rootEl || rootEl.contains(el))) return;
+        let id = el.getAttribute('data-h2c');
+        let rec = id ? recs.find(r => r.id === id) : null;
+        if(!rec){ id = 'h' + (n++); el.setAttribute('data-h2c', id); rec = { id, el, props:new Set(H2C_BASE) }; recs.push(rec); }
+        try{ ef.getKeyframes().forEach(k => Object.keys(k).forEach(p => {
+          if(!/^(offset|easing|composite|computedOffset)$/.test(p)) rec.props.add(p.replace(/[A-Z]/g, c => '-' + c.toLowerCase()));
+        })); }catch(e){}
+      });
+      recs.forEach(r => {
+        const cs = win.getComputedStyle(r.el); r.vals = [];
+        r.props.forEach(p => { const v = cs.getPropertyValue(p); if(v) r.vals.push([p, v]); });
+      });
+    }
+  }catch(e){}
+  return {
+    apply(cdoc){
+      try{
+        const st = cdoc.createElement('style');
+        st.textContent = 'html2canvaspseudoelement{animation:none!important;transition:none!important}';
+        (cdoc.head || cdoc.documentElement).appendChild(st);
+        recs.forEach(r => {
+          const c = cdoc.querySelector('[data-h2c="' + r.id + '"]'); if(!c) return;
+          r.vals.forEach(([p, v]) => { try{ c.style.setProperty(p, v, 'important'); }catch(e){} });
+          c.style.setProperty('animation', 'none', 'important');
+          c.style.setProperty('transition', 'none', 'important');
+        });
+        const cwin = cdoc.defaultView || window;
+        const croot = cdoc.querySelector('[data-h2c-root]') || cdoc.body;
+        const all = croot ? [croot].concat([].slice.call(croot.querySelectorAll('*'))) : [];
+        all.forEach(el => {
+          let cs; try{ cs = cwin.getComputedStyle(el); }catch(e){ return; }
+          H2C_COLOR_PROPS.forEach(p => {
+            const v = cs.getPropertyValue(p);
+            if(v && H2C_BADCOLOR.test(v)){ try{ el.style.setProperty(p, h2cFixColors(v), 'important'); }catch(e){} }
+          });
+          const sh = cs.boxShadow;
+          if(sh && sh !== 'none' && !/inset/.test(sh) && !/\),/.test(sh)){
+            const r = el.getBoundingClientRect();
+            const thin = (r.height < 1 && r.width >= 1) || (r.width < 1 && r.height >= 1);
+            if(thin){
+              const col = (/rgba?\([^)]*\)/.exec(h2cFixColors(sh)) || [])[0];
+              const nums = (sh.replace(/rgba?\([^)]*\)/g, '').match(/-?[\d.]+px/g) || []).map(parseFloat);
+              const spread = nums[3] || 0, blur = nums[2] || 0;
+              const t = Math.max(1, (r.height < 1 ? r.height : r.width) + spread * 2 + blur) + 'px';
+              if(col){
+                el.style.setProperty('box-shadow', 'none', 'important');
+                el.style.setProperty('background-color', col, 'important');
+                el.style.setProperty(r.height < 1 ? 'height' : 'width', t, 'important');
+              }
+            }
+          }
+        });
+      }catch(e){}
+    },
+    done(){ try{ rootEl && rootEl.removeAttribute('data-h2c-root'); }catch(e){} recs.forEach(r => { try{ r.el.removeAttribute('data-h2c'); }catch(e){} }); }
+  };
+}
+
 function fixTinyBgs(doc,rootId){
   const win=doc.defaultView||window,root=doc.getElementById(rootId);
   if(!root)return;
@@ -4217,7 +4325,7 @@ function fixTinyBgs(doc,rootId){
 }
 
 /* ── 저장 · 복사 ── */
-function shot(){const s=curSize();return html2canvas(document.getElementById('canvas'),{scale:1,useCORS:true,backgroundColor:null,width:s.w,height:s.h,onclone:d=>{d.getElementById('canvas').style.transform='scale(1)';fixTinyBgs(d,'canvas');d.querySelectorAll('[contenteditable]').forEach(x=>x.removeAttribute('contenteditable'));const cw=d.querySelector('.canvas-wrap');if(cw)cw.classList.remove('editmode');d.getElementById('stage').classList.remove('pg-l','pg-r','pg-bl','pg-br');d.querySelectorAll('#quoteText .pick').forEach(e=>e.classList.remove('pick'));}});}
+function shot(){const s=curSize();const fx=h2cPrep(document.getElementById('canvas'));return html2canvas(document.getElementById('canvas'),{scale:1,useCORS:true,backgroundColor:null,width:s.w,height:s.h,onclone:d=>{d.getElementById('canvas').style.transform='scale(1)';fx.apply(d);fixTinyBgs(d,'canvas');d.querySelectorAll('[contenteditable]').forEach(x=>x.removeAttribute('contenteditable'));const cw=d.querySelector('.canvas-wrap');if(cw)cw.classList.remove('editmode');d.getElementById('stage').classList.remove('pg-l','pg-r','pg-bl','pg-br');d.querySelectorAll('#quoteText .pick').forEach(e=>e.classList.remove('pick'));}}).finally(()=>fx.done());}
 function canvasBlob(cv){return new Promise((res,rej)=>{try{cv.toBlob(b=>b?res(b):rej(new Error('blob')),'image/png');}catch(e){rej(e);}});}
 function nextFrame(){return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r())));}
 function stamp(){const d=new Date(),z=n=>String(n).padStart(2,'0');
