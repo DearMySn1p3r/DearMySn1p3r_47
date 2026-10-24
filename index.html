@@ -643,6 +643,13 @@ textarea.code{min-height:220px;font-family:ui-monospace,SFMono-Regular,Menlo,Con
       <div>
         <div class="mini-lbl">글자색</div>
         <div class="seg" id="segColor"><button onclick="setColor('dark',this)">어둡게</button><button onclick="setColor('light',this)">밝게</button></div>
+        <div class="row" style="margin-top:12px;"><span class="name">본문 색</span><div class="ltrow">
+          <input type="color" class="color-input" id="inkBody" oninput="setInk('inkBody',this.value)" title="본문 · 출처 글자색">
+          <button class="chip" id="inkBodyAuto" onclick="setInk('inkBody','')">자동</button></div></div>
+        <div class="row"><span class="name">제목 색</span><div class="ltrow">
+          <input type="color" class="color-input" id="inkTitle" oninput="setInk('inkTitle',this.value)" title="제목 · 부제 글자색">
+          <button class="chip" id="inkTitleAuto" onclick="setInk('inkTitle','')">자동</button></div></div>
+        <div class="hint-sm" style="margin-top:8px;">‘자동’이면 위의 어둡게·밝게를 따라가요. 일부 글자만 바꾸려면 본문 카드의 <b>글자색</b>(동그라미)을 쓰세요.</div>
       </div>
       <div style="margin-top:18px;">
         <div class="mini-lbl">세로 위치</div>
@@ -655,7 +662,13 @@ textarea.code{min-height:220px;font-family:ui-monospace,SFMono-Regular,Menlo,Con
     </div>
 
     <div class="card" id="c-font">
-      <div class="lbl">서체</div>
+      <div class="lbl">서체
+        <div class="mini-seg" id="segFontTg">
+          <button type="button" data-t="body" class="on" onclick="setFontTarget('body')">본문</button>
+          <button type="button" data-t="title" onclick="setFontTarget('title')">제목</button>
+        </div>
+      </div>
+      <div class="hint-sm" id="fontTgHint" style="margin:-6px 0 12px;"></div>
       <div class="fgrid" id="fonts">
         <button class="fbtn f-pre on" data-f="'Pretendard',sans-serif">프리텐다드</button>
         <button class="fbtn f-gowun" data-f="'Gowun Batang',serif">고운바탕</button>
@@ -667,6 +680,7 @@ textarea.code{min-height:220px;font-family:ui-monospace,SFMono-Regular,Menlo,Con
         <button class="fbtn f-noto" data-f="'Noto Sans KR',sans-serif">노토 고딕</button>
         <button class="fbtn f-paper" data-f="'Paperlogy',sans-serif">페이퍼로지</button>
       </div>
+      <button class="chip" id="titleSame" style="margin-top:12px;display:none;" onclick="setTitleFont('')">제목도 본문 서체로</button>
     </div>
 
     <div class="card" id="c-tune">
@@ -1036,7 +1050,7 @@ const BUBS=[
 const AC_COLS=['#5FB3AB','#8FB3E8','#E58FA8','#E0A45A','#A98BD6','#8A8378'];
 const CAST_COLS=['#8FB3E8','#E58FA8','#5FB3AB','#E0A45A','#A98BD6','#7FB77E','#D9826B'];
 Object.assign(state,{split:false,pgNum:false,exMode:'zip',hlShape:'full',imgRad:'round',bk:Object.assign({},BK_DEF),cast:[],curCast:'',
-  cxOn:false,cxHtml:'',cxPos:'front',cxPages:'all',cxImgs:[],
+  inkBody:'',inkTitle:'',titleFont:'',cxOn:false,cxHtml:'',cxPos:'front',cxPages:'all',cxImgs:[],
   imgOn:false,imgSrc:'',imgAR:1.5,imgH:32,imgPos:'top',imgSW:38,imgSH:125,imgZoom:1,imgOx:0.5,imgOy:0.5});
 
 const editor=document.getElementById('editor');
@@ -1048,7 +1062,7 @@ function loadLS(k){try{return JSON.parse(localStorage.getItem(k))||[];}catch(e){
 function saveLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}
 let myBg=loadLS(LS_BG), myHl=loadLS(LS_HL);
 let settingsReady=false;
-const SET_KEYS=['font','fontSize','lineHeight','letterSpacing','padX','padY','align','valign','wrap','color','colorLocked','mode','presetId','bgCss','bgImgOp','bgBase','customMode','dir','savedIdx','sizeId','bk','cast','curCast','imgOn','imgSrc','imgAR','imgH','imgPos','imgSW','imgSH','imgZoom','imgOx','imgOy','split','pgNum','exMode','hlShape','imgRad','cxOn','cxHtml','cxPos','cxPages','cxImgs'];
+const SET_KEYS=['font','fontSize','lineHeight','letterSpacing','padX','padY','align','valign','wrap','color','colorLocked','mode','presetId','bgCss','bgImgOp','bgBase','customMode','dir','savedIdx','sizeId','bk','cast','curCast','imgOn','imgSrc','imgAR','imgH','imgPos','imgSW','imgSH','imgZoom','imgOx','imgOy','split','pgNum','exMode','hlShape','imgRad','inkBody','inkTitle','titleFont','cxOn','cxHtml','cxPos','cxPages','cxImgs'];
 function saveSettings(){if(!settingsReady)return;histTouch();clearTimeout(saveSettings._t);saveSettings._t=setTimeout(()=>{
   updateStyBtn();
   const o={};SET_KEYS.forEach(k=>o[k]=state[k]);
@@ -1065,7 +1079,8 @@ function restoreUI(){
   if(!SIZES[state.sizeId])state.sizeId='square';
   liveH=null;fitCanvas();
   const sord={square:0,portrait:1,landscape:2,twitter:3};document.querySelectorAll('#segSize button').forEach((b,i)=>b.classList.toggle('on',i===(sord[state.sizeId]!==undefined?sord[state.sizeId]:0)));
-  document.querySelectorAll('#fonts .fbtn').forEach(b=>b.classList.toggle('on',b.dataset.f===state.font));
+  if(typeof state.titleFont!=='string')state.titleFont='';
+  syncFontUI();
   const am={left:0,center:1,right:2};document.querySelectorAll('#segAlign button').forEach((b,i)=>b.classList.toggle('on',i===am[state.align]));
   const vm={center:0,top:1,bottom:2};document.querySelectorAll('#segValign button').forEach((b,i)=>b.classList.toggle('on',i===vm[state.valign]));
   document.querySelectorAll('.seg-wrap').forEach((b,i)=>{const on=(i===0&&state.wrap==='keep-all')||(i===1&&state.wrap==='break-all');b.classList.toggle('on',on);b.style.color=on?'var(--accent)':'var(--muted)';b.style.borderColor=on?'var(--accent)':'var(--line)';b.style.background=on?'var(--accent-soft)':'var(--field)';});
@@ -1188,6 +1203,16 @@ function renderMyBg(){
   });
 }
 
+/* 본문·제목 글자색 — 비워 두면 '어둡게·밝게'를 따라간다 */
+function inkBody(){return state.inkBody||COLORS[state.color].q;}
+function inkTitle(){return state.inkTitle||COLORS[state.color].q;}
+function setInk(k,v){state[k]=/^#[0-9a-f]{6}$/i.test(v||'')?v:'';applyTheme();}
+function syncInkUI(){
+  [['inkBody',inkBody()],['inkTitle',inkTitle()]].forEach(([k,v])=>{
+    const i=_in(k);if(i&&document.activeElement!==i)i.value=v;
+    const a=_in(k+'Auto');if(a){a.disabled=!state[k];}
+  });
+}
 function setColor(c,btn){state.color=c;state.colorLocked=true;document.querySelectorAll('#segColor button').forEach(x=>x.classList.remove('on'));btn.classList.add('on');applyTheme();}
 function syncColorSeg(){const b=document.querySelectorAll('#segColor button');b.forEach(x=>x.classList.remove('on'));b[state.color==='dark'?0:1].classList.add('on');}
 function applyTheme(){
@@ -1198,7 +1223,10 @@ function applyTheme(){
   const bo=document.getElementById('v-bgOp');if(bo)bo.innerHTML=(+state.bgImgOp||100)+'<span class="u">%</span>';
   const bb=document.getElementById('bgBase');if(bb)bb.value=state.bgBase||'#FFFFFF';
   const c=COLORS[state.color];
-  ['heading','subtitle','quote','attr'].forEach(id=>document.getElementById(id).style.color=c.q);
+  const ib=inkBody(),it=inkTitle();
+  ['quote','attr'].forEach(id=>document.getElementById(id).style.color=ib);
+  ['heading','subtitle'].forEach(id=>document.getElementById(id).style.color=it);
+  syncInkUI();
   document.getElementById('attr').style.opacity=c.op;
   document.getElementById('subtitle').style.opacity=state.color==='light'?.7:.55;
   const isImg=/url\(/.test(state.bgCss||'');
@@ -1209,7 +1237,24 @@ function applyTheme(){
   saveSettings();
 }
 
-document.querySelectorAll('#fonts .fbtn').forEach(btn=>{btn.onclick=()=>{state.font=btn.dataset.f;document.querySelectorAll('#fonts .fbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');applyStyle();};});
+/* 서체 — 위의 ‘본문 / 제목’으로 고른 쪽에 적용한다. 제목 서체를 안 정하면 본문을 따라간다 */
+let fontTarget='body';
+document.querySelectorAll('#fonts .fbtn').forEach(btn=>{btn.onclick=()=>{
+  if(fontTarget==='title')setTitleFont(btn.dataset.f===state.font?'':btn.dataset.f);
+  else{state.font=btn.dataset.f;syncFontUI();applyStyle();}
+};});
+function setTitleFont(f){state.titleFont=f||'';syncFontUI();applyStyle();}
+function setFontTarget(t){fontTarget=t==='title'?'title':'body';syncFontUI();}
+function syncFontUI(){
+  const cur=fontTarget==='title'?(state.titleFont||state.font):state.font;
+  document.querySelectorAll('#fonts .fbtn').forEach(b=>b.classList.toggle('on',b.dataset.f===cur));
+  document.querySelectorAll('#segFontTg button').forEach(b=>b.classList.toggle('on',b.dataset.t===fontTarget));
+  const h=_in('fontTgHint');
+  if(h)h.textContent=fontTarget==='title'
+    ?(state.titleFont?'제목·부제에 따로 고른 서체를 쓰고 있어요.':'제목·부제가 본문 서체를 따라가고 있어요. 고르면 제목만 바뀌어요.')
+    :'본문·출처 서체예요.'+(state.titleFont?' 제목은 따로 정해 둔 서체를 써요.':' 제목도 함께 바뀌어요.');
+  const sm=_in('titleSame');if(sm)sm.style.display=(fontTarget==='title'&&state.titleFont)?'inline-block':'none';
+}
 function setAlign(v,btn){state.align=v;document.querySelectorAll('#segAlign button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');applyStyle();}
 function setValign(v,btn){state.valign=v;document.querySelectorAll('#segValign button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');applyStyle();}
 function setWrap(v,btn){state.wrap=v;document.querySelectorAll('.seg-wrap').forEach(b=>{b.classList.remove('on');b.style.color='var(--muted)';b.style.borderColor='var(--line)';b.style.background='var(--field)';});btn.classList.add('on');btn.style.color='var(--accent)';btn.style.borderColor='var(--accent)';btn.style.background='var(--accent-soft)';applyStyle();}
@@ -1227,6 +1272,7 @@ function applyStyle(){
   const q=document.getElementById('quote'),a=document.getElementById('attr'),hd=document.getElementById('heading'),sb=document.getElementById('subtitle'),tb=document.getElementById('titleblock'),cv=document.getElementById('canvas');
   const f=state.font,fs=state.fontSize;
   [q,a,hd,sb].forEach(e=>{e.style.fontFamily=f;e.style.textAlign=state.align;});
+  if(state.titleFont){hd.style.fontFamily=state.titleFont;sb.style.fontFamily=state.titleFont;}
   q.style.fontSize=fs+'px';q.style.lineHeight=state.lineHeight;q.style.letterSpacing=state.letterSpacing+'px';q.style.wordBreak=state.wrap;
   hd.style.fontSize=Math.round(fs*0.88)+'px';hd.style.letterSpacing=(state.letterSpacing+0.2)+'px';
   sb.style.fontSize=Math.round(fs*0.74)+'px';sb.style.letterSpacing=state.letterSpacing+'px';
@@ -1405,7 +1451,7 @@ function paintPgNum(){
   el.textContent=(curPage+1)+' / '+n;
   const fs=Math.max(14,Math.round(state.fontSize*0.56));
   el.style.fontFamily=state.font;el.style.fontSize=fs+'px';
-  el.style.color=COLORS[state.color].q;
+  el.style.color=inkBody();
   el.style.right=state.padX+'px';
   el.style.bottom=Math.max(20,Math.round(state.padY/2-fs/2))+'px';
 }
@@ -1485,7 +1531,7 @@ function paintRange(a,b){
       case 'bubL':case 'bubR':{
         bg=true;
         const me=s==='bubR',bc=bubColors(me),shape=B.bub||'round';
-        const ink=COLORS[state.color].q;
+        const ink=inkBody();
         const nextChain=nextSame&&cOf(i+1)===(o.c||'');
         const avOn=B.av==='all'||(B.av==='you'&&!me);
         d.style.display='flex';d.style.flexDirection=me?'row-reverse':'row';d.style.alignItems='flex-start';
@@ -2742,7 +2788,7 @@ function clearAllText(){
 const LS_STY='excerpt.styles.v1';
 const STY_KEYS=['font','fontSize','lineHeight','letterSpacing','padX','padY','align','valign','wrap',
   'color','colorLocked','mode','presetId','bgCss','bgImgOp','bgBase','customMode','dir','sizeId',
-  'bk','imgPos','imgH','imgSW','split','pgNum','hlShape','imgRad','cxOn','cxHtml','cxPos','cxPages','cxImgs'];
+  'bk','imgPos','imgH','imgSW','split','pgNum','hlShape','imgRad','inkBody','inkTitle','titleFont','cxOn','cxHtml','cxPos','cxPages','cxImgs'];
 let mySty=loadLS(LS_STY);
 function styPick(){
   const o={};STY_KEYS.forEach(k=>{o[k]=JSON.parse(JSON.stringify(state[k]===undefined?null:state[k]));});
@@ -3027,7 +3073,7 @@ function updateEmpty(){
   const v=id=>{const e=_in(id);return e?e.value.trim():'';};
   const empty=!editor.textContent.trim()&&!v('inHead')&&!v('inSub')&&!v('inSrc')&&!v('inSpk')&&!imgOnNow()&&!cxActive();
   w.classList.toggle('is-empty',empty);
-  w.style.setProperty('--gc',COLORS[state.color]?COLORS[state.color].q:'#2C2823');
+  w.style.setProperty('--gc',COLORS[state.color]?inkBody():'#2C2823');
 }
 function openText(){
   showTab('c-text');
@@ -3595,7 +3641,7 @@ function cxPlace(){
   const s=curSize(),c=COLORS[state.color]||COLORS.dark;
   const css=(flow?'position:relative;flex:0 0 auto;':'position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;z-index:'+(pos==='bg'?1:4)+';')+
     'pointer-events:none;-webkit-user-select:none;user-select:none;'+
-    '--cx-ink:'+c.q+';--cx-acc:'+((state.bk&&state.bk.acc)||'#5FB3AB')+';--cx-font:'+state.font+';--cx-fs:'+state.fontSize+'px;'+
+    '--cx-ink:'+inkBody()+';--cx-title-ink:'+inkTitle()+';--cx-title-font:'+(state.titleFont||state.font)+';'+'--cx-acc:'+((state.bk&&state.bk.acc)||'#5FB3AB')+';--cx-font:'+state.font+';--cx-fs:'+state.fontSize+'px;'+
     '--cx-w:'+s.w+'px;--cx-h:'+s.h+'px;--cx-align:'+state.align+';';
   if(cxEl._css!==css){cxEl.style.cssText=css;cxEl._css=css;}
   const cn='cx-'+pos;if(cxEl.className!==cn)cxEl.className=cn;
