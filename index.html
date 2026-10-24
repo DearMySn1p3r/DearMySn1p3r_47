@@ -393,6 +393,16 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
 .smenu .nmrow button{height:36px;padding:0 12px;border:none;border-radius:9px;background:var(--solid);color:var(--solid-text);
                      font-family:inherit;font-size:.8rem;font-weight:600;cursor:pointer;}
 
+/* ── HTML 꾸미기 ── */
+textarea.code{min-height:220px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'D2Coding',monospace;font-size:.76rem;line-height:1.6;
+              white-space:pre;overflow:auto;resize:vertical;tab-size:2;-moz-tab-size:2;word-break:normal;overflow-wrap:normal;}
+.cxpos{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.cxpos button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 6px;}
+.cxpos button span{font-size:.64rem;opacity:.65;font-weight:400;}
+.cxhelp summary{cursor:pointer;font-size:.76rem;color:var(--muted);font-weight:600;}
+.cxhelp code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.7rem;background:var(--field);border:1px solid var(--line);
+             border-radius:5px;padding:1px 5px;white-space:nowrap;}
+
 /* ── 모바일 ───────────────────────────────────────────────────────────
    880px 아래: 레일 대신 미리보기 밑의 탭 줄로 분류를 고르고, 미리보기는 위에 고정한다.
    저장·복사는 화면 아래에 고정. */
@@ -557,6 +567,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
       <button type="button" data-go="c-title"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14M12 6v13"/></svg><span>제목</span></button>
       <button type="button" data-go="c-text"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5h12v15H6z"/><path d="M9 9h6M9 12.5h6M9 16h4"/></svg><span>본문</span></button>
       <button type="button" data-go="c-line"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7h11a3 3 0 010 6H9l-4.5 4z"/></svg><span>꾸미기</span></button>
+      <button type="button" data-go="c-cx"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 7.5L4 12l4.5 4.5M15.5 7.5L20 12l-4.5 4.5M13.5 5l-3 14"/></svg><span>HTML</span></button>
       <div class="rsep"></div>
       <button type="button" data-go="c-pages"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7" width="12" height="13" rx="2"/><path d="M8.5 3.5h10a2 2 0 012 2v11"/></svg><span>여러 장</span></button>
     </nav>
@@ -854,6 +865,62 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
     </div>
 
 
+    <div class="card" id="c-cx">
+      <div class="lbl">HTML 꾸미기
+        <div class="mini-seg">
+          <button type="button" id="cxOnBtn" onclick="setCxOn(true)">넣기</button>
+          <button type="button" id="cxOffBtn" class="on" onclick="setCxOn(false)">안 함</button>
+        </div>
+      </div>
+      <div class="hint-sm" id="cxIntro">직접 만든 HTML·CSS를 카드에 얹어요. 테두리·스티커·도장·머리말처럼 원하는 장식을 코드로 그릴 수 있어요. <b>넣기</b>를 누르면 예시부터 골라 시작할 수 있어요.</div>
+      <input type="file" id="cxFile" accept=".html,.htm,.svg,.txt,text/html,image/svg+xml" style="display:none;" onchange="onCxFile(this)">
+      <input type="file" id="cxImgInput" accept="image/*" style="display:none;" onchange="onCxImg(this)">
+      <div id="cxBody" style="display:none;">
+        <div class="mini-lbl">자리</div>
+        <div class="seg cxpos" id="segCxPos">
+          <button type="button" data-p="bg" onclick="setCxPos('bg')">글 뒤<span>배경 무늬</span></button>
+          <button type="button" data-p="front" onclick="setCxPos('front')">글 앞<span>테두리 · 스티커</span></button>
+          <button type="button" data-p="top" onclick="setCxPos('top')">글 위<span>머리말</span></button>
+          <button type="button" data-p="bottom" onclick="setCxPos('bottom')">글 아래<span>꼬리말</span></button>
+        </div>
+        <div class="row" style="margin-top:12px;"><span class="name">보일 장</span><div class="mini-seg" id="segCxPg">
+          <button type="button" data-g="all" onclick="setCxPages('all')">모든 장</button><button type="button" data-g="first" onclick="setCxPages('first')">첫 장</button><button type="button" data-g="last" onclick="setCxPages('last')">마지막 장</button></div></div>
+
+        <div class="mini-lbl" style="margin-top:16px;">예시로 시작하기</div>
+        <div class="presets" id="cxTpl"></div>
+
+        <div class="mini-lbl" style="margin-top:16px;">HTML · CSS</div>
+        <textarea class="code" id="cxCode" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="HTML·CSS 코드" placeholder="&lt;style&gt;&#10;  .box{ position:absolute; right:60px; top:60px; }&#10;&lt;/style&gt;&#10;&lt;div class=&quot;box&quot;&gt;✦&lt;/div&gt;"></textarea>
+        <div class="warn" id="cxMsg"></div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">
+          <button type="button" class="chip" onclick="_in('cxFile').click()">HTML 파일 불러오기</button>
+          <button type="button" class="chip" onclick="_in('cxImgInput').click()">이미지 넣기</button>
+          <button type="button" class="chip" onclick="cxClear()">비우기</button>
+        </div>
+        <div id="cxImgWrap" style="display:none;margin-top:12px;">
+          <div class="mini-lbl" style="margin-bottom:8px;">올린 이미지 · 눌러서 코드에 넣기</div>
+          <div class="presets" id="cxImgs"></div>
+        </div>
+
+        <div class="mini-lbl" style="margin-top:18px;">내 HTML · 다음에도 사용</div>
+        <div class="cust-line" style="flex-wrap:nowrap;">
+          <input type="text" id="cxName" maxlength="20" placeholder="이름 (예: 노을 액자)" style="flex:1;min-width:0;padding:9px 12px;">
+          <button type="button" class="chip" style="flex:0 0 auto;" onclick="saveCxLib()">＋ 저장</button>
+        </div>
+        <div class="presets" id="cxLib" style="margin-top:10px;"></div>
+
+        <details class="cxhelp" style="margin-top:18px;">
+          <summary>쓸 수 있는 값 · 알아 둘 것</summary>
+          <div class="hint-sm" style="margin-top:8px;line-height:1.8;">
+            <b>글자 자리</b> — <code>{{title}}</code> 제목 · <code>{{subtitle}}</code> 부제 · <code>{{source}}</code> 출처 · <code>{{speaker}}</code> 화자 · <code>{{page}}</code> / <code>{{pages}}</code> 장 번호 · <code>{{date}}</code> 오늘 날짜 · <code>{{img1}}</code> 올린 이미지<br>
+            <b>카드에 맞춘 값</b> — <code>var(--cx-ink)</code> 글자색 · <code>var(--cx-acc)</code> 강조색(줄 꾸미기) · <code>var(--cx-font)</code> 서체 · <code>var(--cx-fs)</code> 본문 크기 · <code>var(--cx-w)</code> · <code>var(--cx-h)</code> 카드 폭·높이<br>
+            <b>크기 기준</b> — 미리보기는 줄여서 보여 줄 뿐, 실제 카드 픽셀(예: 1080 × 1080) 그대로예요. 글 뒤·앞 자리에서는 <code>body</code>가 카드 전체이고, <code>100vh</code>·<code>100vw</code>는 카드 높이·폭이 돼요.<br>
+            <b>안 되는 것</b> — 카드는 그림으로 저장되어 스크립트·애니메이션은 쓰이지 않아요. 필터·블렌드·마스크 같은 최신 CSS는 저장한 그림에서 다르게 나올 수 있어요. 글 앞 자리의 장식은 눌러도 통과돼서 아래 글을 그대로 고칠 수 있어요.
+          </div>
+        </details>
+      </div>
+    </div>
+
     <div class="card" id="c-pages">
       <div class="lbl">여러 장</div>
       <div class="row"><span class="name">넘치면 다음 장으로</span><div class="mini-seg">
@@ -912,6 +979,7 @@ textarea.sub{min-height:48px;resize:vertical;line-height:1.5;}
       <button type="button" data-go="c-title">제목</button>
       <button type="button" data-go="c-text">본문</button>
       <button type="button" data-go="c-line">꾸미기</button>
+      <button type="button" data-go="c-cx">HTML</button>
       <button type="button" data-go="c-pages">여러 장</button>
       </nav>
     </section>
@@ -968,6 +1036,7 @@ const BUBS=[
 const AC_COLS=['#5FB3AB','#8FB3E8','#E58FA8','#E0A45A','#A98BD6','#8A8378'];
 const CAST_COLS=['#8FB3E8','#E58FA8','#5FB3AB','#E0A45A','#A98BD6','#7FB77E','#D9826B'];
 Object.assign(state,{split:false,pgNum:false,exMode:'zip',hlShape:'full',imgRad:'round',bk:Object.assign({},BK_DEF),cast:[],curCast:'',
+  cxOn:false,cxHtml:'',cxPos:'front',cxPages:'all',cxImgs:[],
   imgOn:false,imgSrc:'',imgAR:1.5,imgH:32,imgPos:'top',imgSW:38,imgSH:125,imgZoom:1,imgOx:0.5,imgOy:0.5});
 
 const editor=document.getElementById('editor');
@@ -979,14 +1048,14 @@ function loadLS(k){try{return JSON.parse(localStorage.getItem(k))||[];}catch(e){
 function saveLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}
 let myBg=loadLS(LS_BG), myHl=loadLS(LS_HL);
 let settingsReady=false;
-const SET_KEYS=['font','fontSize','lineHeight','letterSpacing','padX','padY','align','valign','wrap','color','colorLocked','mode','presetId','bgCss','bgImgOp','bgBase','customMode','dir','savedIdx','sizeId','bk','cast','curCast','imgOn','imgSrc','imgAR','imgH','imgPos','imgSW','imgSH','imgZoom','imgOx','imgOy','split','pgNum','exMode','hlShape','imgRad'];
+const SET_KEYS=['font','fontSize','lineHeight','letterSpacing','padX','padY','align','valign','wrap','color','colorLocked','mode','presetId','bgCss','bgImgOp','bgBase','customMode','dir','savedIdx','sizeId','bk','cast','curCast','imgOn','imgSrc','imgAR','imgH','imgPos','imgSW','imgSH','imgZoom','imgOx','imgOy','split','pgNum','exMode','hlShape','imgRad','cxOn','cxHtml','cxPos','cxPages','cxImgs'];
 function saveSettings(){if(!settingsReady)return;histTouch();clearTimeout(saveSettings._t);saveSettings._t=setTimeout(()=>{
   updateStyBtn();
   const o={};SET_KEYS.forEach(k=>o[k]=state[k]);
   /* 이미지 배경은 data URL이라 용량이 크다. 넘칠 땐 배경만 빼고 나머지 설정은 지킨다. */
   if(!saveLS(LS_SET,o)){
     const o2=Object.assign({},o,{bgCss:'#F2F0EA',mode:'preset',presetId:'paper'});
-    if(!saveLS(LS_SET,o2)){const o3=Object.assign({},o2,{imgSrc:''});
+    if(!saveLS(LS_SET,o2)){const o3=Object.assign({},o2,{imgSrc:'',cxImgs:[]});
       if(!saveLS(LS_SET,o3))saveLS(LS_SET,Object.assign({},o3,{cast:(o3.cast||[]).map(c=>Object.assign({},c,{av:''}))}));}
   }
 },250);}
@@ -1013,6 +1082,11 @@ function restoreUI(){
   if(state.imgRad!=='square')state.imgRad='round';
   imgUI();applyImg();
   syncPagesUI();syncHlShape();syncImgRad();
+  if(!CX_POS_NM[state.cxPos])state.cxPos='front';
+  if(['all','first','last'].indexOf(state.cxPages)<0)state.cxPages='all';
+  if(!Array.isArray(state.cxImgs))state.cxImgs=[];
+  if(typeof state.cxHtml!=='string')state.cxHtml='';
+  cxC=cxCompile(state.cxHtml);cxEl._k=null;cxUI();cxMsg();
 }
 
 function buildSwatches(){
@@ -1288,6 +1362,7 @@ function imgOnNow(){return !!(state.imgOn&&state.imgSrc&&!imgBlocked());}
 function paintQuote(){
   if(cardEd&&cardEd.kind==='line')return;
   updateEmpty();
+  cxPrep();
   const segs=[];let st=0;
   for(let i=0;i<LINES.length;i++){if(isBreak(LINES[i])){segs.push([st,i]);st=i+1;}}
   segs.push([st,LINES.length]);
@@ -1301,6 +1376,7 @@ function paintQuote(){
   if(curPage<0)curPage=0;
   paintRange(PAGES[curPage][0],PAGES[curPage][1]);
   paintPgNum();
+  paintCx();
   updatePagesUI();
 }
 /* 한 덩어리를 통째로 그려 놓고 줄마다 높이를 재서, 카드 높이를 넘는 줄에서 자른다 */
@@ -2665,7 +2741,7 @@ function clearAllText(){
 const LS_STY='excerpt.styles.v1';
 const STY_KEYS=['font','fontSize','lineHeight','letterSpacing','padX','padY','align','valign','wrap',
   'color','colorLocked','mode','presetId','bgCss','bgImgOp','bgBase','customMode','dir','sizeId',
-  'bk','imgPos','imgH','imgSW','split','pgNum','hlShape','imgRad'];
+  'bk','imgPos','imgH','imgSW','split','pgNum','hlShape','imgRad','cxOn','cxHtml','cxPos','cxPages','cxImgs'];
 let mySty=loadLS(LS_STY);
 function styPick(){
   const o={};STY_KEYS.forEach(k=>{o[k]=JSON.parse(JSON.stringify(state[k]===undefined?null:state[k]));});
@@ -2948,7 +3024,7 @@ const IS_MAC=/Mac|iPhone|iPad|iPod/.test(navigator.platform||navigator.userAgent
 function updateEmpty(){
   const w=document.querySelector('.canvas-wrap');if(!w)return;
   const v=id=>{const e=_in(id);return e?e.value.trim():'';};
-  const empty=!editor.textContent.trim()&&!v('inHead')&&!v('inSub')&&!v('inSrc')&&!v('inSpk')&&!imgOnNow();
+  const empty=!editor.textContent.trim()&&!v('inHead')&&!v('inSub')&&!v('inSrc')&&!v('inSpk')&&!imgOnNow()&&!cxActive();
   w.classList.toggle('is-empty',empty);
   w.style.setProperty('--gc',COLORS[state.color]?COLORS[state.color].q:'#2C2823');
 }
@@ -3320,6 +3396,368 @@ function hideZoomTip(){
   window.addEventListener('pointerup',stop);window.addEventListener('pointercancel',stop);
 })();
 
+/* ── HTML 꾸미기 ──────────────────────────────────────────────────────
+   직접 만든 HTML·CSS를 카드에 얹는다. 자리: 글 뒤(배경) · 글 앞(덮개) · 글 위 · 글 아래.
+   앱 화면을 망가뜨리지 않도록 —
+   · 스크립트·on… 속성은 뺀다(카드는 그림으로 저장되므로 쓰이지도 않는다)
+   · class·id 이름 앞에 cx_ 를 붙이고 CSS 선택자도 똑같이 바꾼 뒤, 모두 #cx 안으로 가둔다
+   · html·:root 는 카드 틀(#cx)로, body 는 그 안의 상자(.cxb)로 옮긴다
+   · vh·vw 는 화면이 아니라 카드 크기 기준으로 바꾼다 */
+const cxEl=document.createElement('div');cxEl.id='cx';cxEl.setAttribute('aria-hidden','true');
+let cxC={imp:'',css:'',html:'',bs:'',bc:'',bad:0,ext:false};
+const CX_POS_NM={bg:'글 뒤',front:'글 앞',top:'글 위',bottom:'글 아래'};
+const CX_BASE=':where(#cx){color:var(--cx-ink);font-family:var(--cx-font);font-size:28px;line-height:1.5;font-weight:400;letter-spacing:0;text-align:var(--cx-align);word-break:keep-all;overflow-wrap:break-word;}'+
+  ':where(#cx.cx-top){margin-bottom:calc(var(--cx-fs) * .8);}:where(#cx.cx-bottom){margin-top:calc(var(--cx-fs) * .8);}'+
+  '#cx *,#cx *::before,#cx *::after{box-sizing:content-box;}\n';
+const CX_TPL=[
+  {nm:'액자',pos:'front',html:`<style>
+.frame{position:absolute;top:36px;left:36px;right:36px;bottom:36px;
+  border:3px solid var(--cx-acc);border-radius:22px;}
+.frame::after{content:"";position:absolute;top:10px;left:10px;right:10px;bottom:10px;
+  border:1px solid var(--cx-acc);border-radius:14px;opacity:.6;}
+</style>
+<div class="frame"></div>`},
+  {nm:'모서리',pos:'front',html:`<style>
+.c{position:absolute;width:90px;height:90px;border:3px solid var(--cx-acc);}
+.tl{top:42px;left:42px;border-right:0;border-bottom:0;}
+.br{right:42px;bottom:42px;border-left:0;border-top:0;}
+</style>
+<div class="c tl"></div>
+<div class="c br"></div>`},
+  {nm:'마스킹 테이프',pos:'front',html:`<style>
+.tape{position:absolute;top:30px;left:50%;width:230px;height:56px;margin-left:-115px;
+  background:var(--cx-acc);opacity:.5;transform:rotate(-3deg);}
+</style>
+<div class="tape"></div>`},
+  {nm:'장 번호 도장',pos:'front',html:`<style>
+.stamp{position:absolute;right:56px;bottom:56px;width:116px;height:116px;
+  border:3px solid var(--cx-acc);border-radius:50%;color:var(--cx-acc);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transform:rotate(-12deg);font-size:18px;letter-spacing:.14em;line-height:1.1;}
+.stamp b{font-size:40px;letter-spacing:0;}
+</style>
+<div class="stamp"><span>PAGE</span><b>{{page}}</b></div>`},
+  {nm:'머리말',pos:'top',html:`<style>
+.head{display:flex;align-items:center;gap:18px;font-size:20px;letter-spacing:.2em;opacity:.65;}
+.head .line{flex:1;height:1px;background:currentColor;opacity:.5;}
+</style>
+<div class="head"><span>{{source}}</span><span class="line"></span><span>{{date}}</span></div>`},
+  {nm:'꼬리말',pos:'bottom',html:`<style>
+.foot{padding-top:20px;border-top:1px solid var(--cx-ink);display:flex;justify-content:space-between;
+  font-size:19px;letter-spacing:.08em;opacity:.6;}
+</style>
+<div class="foot"><span>{{title}}</span><span>{{page}} / {{pages}}</span></div>`},
+  {nm:'공책 줄',pos:'bg',html:`<style>
+body{background-image:linear-gradient(to bottom,transparent 58px,rgba(0,0,0,.08) 58px,rgba(0,0,0,.08) 60px);
+  background-size:100% 60px;}
+body::before{content:"";position:absolute;top:0;bottom:0;left:110px;width:2px;
+  background:var(--cx-acc);opacity:.4;}
+</style>`},
+];
+
+/* 선택자 목록을 맨 바깥 쉼표로 나눈다(괄호·따옴표 안의 쉼표는 그대로) */
+function cxSplit(s){
+  const out=[];let d=0,cur='',q='';
+  for(let i=0;i<s.length;i++){const ch=s[i];
+    if(q){cur+=ch;if(ch==='\\'){cur+=s[i+1]||'';i++;}else if(ch===q)q='';continue;}
+    if(ch==='"'||ch==="'"){q=ch;cur+=ch;continue;}
+    if(ch==='('||ch==='[')d++;else if(ch===')'||ch===']')d--;
+    if(ch===','&&!d){out.push(cur);cur='';continue;}
+    cur+=ch;}
+  out.push(cur);return out;
+}
+/* .이름 · #이름 → .cx_이름 · #cx_이름 (따옴표·[속성] 안은 건드리지 않는다) */
+function cxRename(s){
+  let out='',i=0,br=0,q='';
+  while(i<s.length){const c=s[i];
+    if(q){out+=c;if(c==='\\'){out+=s[i+1]||'';i+=2;continue;}if(c===q)q='';i++;continue;}
+    if(c==='"'||c==="'"){q=c;out+=c;i++;continue;}
+    if(c==='\\'){out+=c+(s[i+1]||'');i+=2;continue;}
+    if(c==='[')br++;else if(c===']')br--;
+    if(!br&&(c==='.'||c==='#')){
+      const m=/^-?[_a-zA-Z\u00a0-\uffff][\w\-\u00a0-\uffff]*/.exec(s.slice(i+1));
+      if(m){out+=c+'cx_'+m[0];i+=1+m[0].length;continue;}
+    }
+    out+=c;i++;}
+  return out;
+}
+function cxScopeSel(sel){
+  sel=sel.trim();if(!sel)return '';
+  sel=sel.replace(/^(?:html|:root)(?![\w-])/i,'\u0001');
+  sel=sel.replace(/^(\u0001\s*>?\s*)?body(?![\w-])/i,'\u0002');
+  if(sel.charAt(0)==='\u0002')return '#cx>.cxb'+sel.slice(1);
+  if(sel.charAt(0)==='\u0001')return '#cx'+sel.slice(1);
+  if(/^:scope(?![\w-])/i.test(sel))return '#cx'+sel.slice(6);
+  return '#cx '+sel;
+}
+function cxUnits(s){
+  return s.replace(/(-?\d*\.?\d+)(?:s|d|l)?(vh|vw|vmin|vmax)\b/gi,(m,n,u)=>{
+    u=u.toLowerCase();
+    const ref=u==='vw'?'var(--cx-w)':u==='vh'?'var(--cx-h)':u==='vmin'?'min(var(--cx-w), var(--cx-h))':'max(var(--cx-w), var(--cx-h))';
+    return 'calc('+ref+' * '+(+n/100)+')';
+  });
+}
+function cxDecl(s){return cxUnits(s.replace(/url\(\s*(['"]?)#/g,'url($1#cx_'));}
+function cxWalk(rules,out){
+  let t='';
+  for(let i=0;i<rules.length;i++){
+    const r=rules[i],ct=r.cssText||'',ob=ct.indexOf('{');
+    if(r.type===3){if(/^https:\/\//i.test(r.href||''))out.imps.push(ct);continue;}
+    if(r.type===1&&r.selectorText!=null&&ob>0){
+      const sel=cxSplit(r.selectorText).map(x=>cxScopeSel(cxRename(x))).filter(Boolean).join(',');
+      if(sel)t+=sel+cxDecl(ct.slice(ob))+'\n';
+      continue;
+    }
+    if(r.type===7){t+=ct+'\n';continue;}
+    if(r.cssRules&&ob>0){t+=ct.slice(0,ob)+'{'+cxWalk(r.cssRules,out)+'}\n';continue;}
+    t+=cxDecl(ct)+'\n';
+  }
+  return t;
+}
+function cxScopeCss(css,out){
+  if(!css.trim())return '';
+  let rules=null;
+  try{
+    const d=document.implementation.createHTMLDocument('');
+    const s=d.createElement('style');s.textContent=css;d.head.appendChild(s);
+    rules=s.sheet&&s.sheet.cssRules;
+  }catch(_){rules=null;}
+  if(rules)return cxWalk(rules,out);
+  /* 예비: 대충이라도 가둔다 */
+  return css.replace(/@import[^;]*;/g,'')
+    .replace(/(^|[{}])\s*([^{}@]+?)\s*\{/g,(m,a,s)=>a+cxSplit(s).map(x=>cxScopeSel(cxRename(x))).join(',')+'{');
+}
+function cxAttrEsc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
+function cxCompile(src){
+  const out={imp:'',css:'',html:'',bs:'',bc:'',bad:0,ext:false,imps:[]};
+  if(!src||!src.trim())return out;
+  let doc;try{doc=new DOMParser().parseFromString(src,'text/html');}catch(_){return out;}
+  let css='';
+  doc.querySelectorAll('style').forEach(s=>{css+=s.textContent+'\n';s.remove();});
+  doc.querySelectorAll('link').forEach(l=>{
+    const h=l.getAttribute('href')||'';
+    if(/stylesheet/i.test(l.getAttribute('rel')||'')&&/^https:\/\//i.test(h))out.imps.push('@import url("'+h.replace(/["\\]/g,'')+'");');
+    l.remove();
+  });
+  doc.querySelectorAll('script,iframe,frame,frameset,object,embed,applet,base,meta,noscript,template').forEach(e=>{
+    if(/^(script|iframe|frame|object|embed|applet)$/i.test(e.tagName))out.bad++;
+    e.remove();
+  });
+  doc.querySelectorAll('*').forEach(e=>{
+    [].slice.call(e.attributes).forEach(a=>{
+      const n=a.name.toLowerCase(),v=a.value;
+      if(/^on/.test(n)){e.removeAttribute(a.name);out.bad++;return;}
+      if(/^\s*(javascript|vbscript):/i.test(v)){e.removeAttribute(a.name);out.bad++;return;}
+      let nv=v;
+      if(n==='class')nv=v.split(/\s+/).filter(Boolean).map(c=>'cx_'+c).join(' ');
+      else if((n==='id'||n==='for')&&v)nv='cx_'+v;
+      else if((n==='href'||n==='xlink:href')&&/^#./.test(v))nv='#cx_'+v.slice(1);
+      else if(n==='style')nv=cxUnits(v);
+      nv=nv.replace(/url\(\s*(['"]?)#/g,'url($1#cx_');
+      if(nv!==v)e.setAttribute(a.name,nv);
+    });
+  });
+  const b=doc.body;
+  if(b.querySelector('img[src^="http"],image[href^="http"]')||/url\(\s*['"]?https?:/i.test(css))out.ext=true;
+  out.bc=cxAttrEsc(b.getAttribute('class')||'');
+  out.bs=cxAttrEsc(b.getAttribute('style')||'');
+  out.html=b.innerHTML;
+  out.css=cxScopeCss(css,out).replace(/<\/style/gi,'<\\/style');
+  out.imp=out.imps.join('\n');
+  return out;
+}
+function cxActive(){return !!(state.cxOn&&cxC&&(cxC.html.trim()||cxC.css.trim()||cxC.bs));}
+function cxVals(){
+  const d=new Date(),z=x=>String(x).padStart(2,'0'),g=id=>{const e=_in(id);return e?e.value.trim():'';};
+  return {title:g('inHead'),subtitle:g('inSub').replace(/\s*\n\s*/g,' '),source:g('inSrc'),speaker:g('inSpk'),
+          page:curPage+1,pages:PAGES.length,date:d.getFullYear()+'.'+z(d.getMonth()+1)+'.'+z(d.getDate())};
+}
+/* {{title}} 같은 자리를 채운다 — HTML이면 글자를 이스케이프, CSS면 문자열용으로 */
+function cxFill(s,mode){
+  if(!s||s.indexOf('{{')<0)return s||'';
+  const v=cxVals();
+  return s.replace(/\{\{\s*([a-zA-Z]+)\s*(\d*)\s*\}\}/g,(m,k,n)=>{
+    k=k.toLowerCase();
+    if(k==='img')return (state.cxImgs||[])[(+n||1)-1]||'';
+    if(n||!Object.prototype.hasOwnProperty.call(v,k))return m;
+    const x=String(v[k]);
+    return mode==='h'?esc(x).replace(/"/g,'&quot;'):x.replace(/[\\"']/g,'\\$&');
+  });
+}
+function cxPlace(){
+  const pos=state.cxPos,flow=pos==='top'||pos==='bottom';
+  if(flow){
+    const tc=_in('txtcol');
+    if(pos==='top'){if(tc.firstChild!==cxEl)tc.insertBefore(cxEl,tc.firstChild);}
+    else if(tc.lastChild!==cxEl)tc.appendChild(cxEl);
+  }else{const cv=_in('canvas');if(cxEl.parentNode!==cv)cv.appendChild(cxEl);}
+  const s=curSize(),c=COLORS[state.color]||COLORS.dark;
+  const css=(flow?'position:relative;flex:0 0 auto;':'position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;z-index:'+(pos==='bg'?1:4)+';')+
+    'pointer-events:none;-webkit-user-select:none;user-select:none;'+
+    '--cx-ink:'+c.q+';--cx-acc:'+((state.bk&&state.bk.acc)||'#5FB3AB')+';--cx-font:'+state.font+';--cx-fs:'+state.fontSize+'px;'+
+    '--cx-w:'+s.w+'px;--cx-h:'+s.h+'px;--cx-align:'+state.align+';';
+  if(cxEl._css!==css){cxEl.style.cssText=css;cxEl._css=css;}
+  const cn='cx-'+pos;if(cxEl.className!==cn)cxEl.className=cn;
+}
+/* 장을 나누기 전에 — 글 위·아래 자리라면 그만큼 공간을 잡아 두고 잰다 */
+function cxPrep(){if(!cxActive()){if(cxEl.parentNode)cxEl.remove();return;}cxPlace();}
+function paintCx(){
+  if(!cxActive()){if(cxEl.parentNode)cxEl.remove();return;}
+  const n=PAGES.length,g=state.cxPages;
+  if((g==='first'&&curPage!==0)||(g==='last'&&curPage!==n-1)){if(cxEl.parentNode)cxEl.remove();return;}
+  cxPlace();
+  const flow=state.cxPos==='top'||state.cxPos==='bottom';
+  const css=cxFill(cxC.css,'c'),html=cxFill(cxC.html,'h'),bs=cxFill(cxC.bs,'h');
+  const k=css+'\u0001'+html+'\u0001'+bs+'\u0001'+cxC.bc+'\u0001'+flow+'\u0001'+cxC.imp;
+  if(cxEl._k===k)return;
+  cxEl._k=k;
+  cxEl.innerHTML='<style>'+cxC.imp+'\n'+CX_BASE+css+'</style><div class="cxb'+(cxC.bc?' '+cxC.bc:'')+'" style="'+
+    (flow?'':'position:absolute;left:0;top:0;right:0;bottom:0;')+bs+'">'+html+'</div>';
+}
+function applyCx(){cxC=cxCompile(state.cxHtml||'');cxEl._k=null;cxUI();cxMsg();refreshPaint();saveSettings();}
+function cxMsg(){
+  const m=_in('cxMsg');if(!m)return;const t=[];
+  if(cxC.bad)t.push('스크립트·이벤트 속성 '+cxC.bad+'개는 빼고 넣었어요. 카드는 그림으로 저장돼서 움직이는 코드는 쓰이지 않아요.');
+  if(cxC.ext)t.push('바깥 주소의 이미지는 저장한 그림에서 빠질 수 있어요. ‘이미지 넣기’로 올리면 확실해요.');
+  m.textContent=t.join(' ');m.style.display=t.length?'block':'none';
+}
+function cxUI(){
+  const on=!!state.cxOn,t=(id,v)=>{const e=_in(id);if(e)e.classList.toggle('on',v);};
+  t('cxOnBtn',on);t('cxOffBtn',!on);
+  const bd=_in('cxBody'),it=_in('cxIntro');
+  if(bd)bd.style.display=on?'block':'none';if(it)it.style.display=on?'none':'block';
+  document.querySelectorAll('#segCxPos button').forEach(b=>b.classList.toggle('on',b.dataset.p===state.cxPos));
+  document.querySelectorAll('#segCxPg button').forEach(b=>b.classList.toggle('on',b.dataset.g===state.cxPages));
+  const ta=_in('cxCode');
+  if(ta&&document.activeElement!==ta&&ta.value!==(state.cxHtml||''))ta.value=state.cxHtml||'';
+  renderCxImgs();
+}
+function setCxOn(v){state.cxOn=!!v;cxUI();refreshPaint();saveSettings();}
+function setCxPos(p){if(!CX_POS_NM[p])return;state.cxPos=p;cxEl._k=null;cxUI();refreshPaint();saveSettings();}
+function setCxPages(g){if(['all','first','last'].indexOf(g)<0)return;state.cxPages=g;cxUI();refreshPaint();saveSettings();}
+function cxSetCode(t){state.cxHtml=t;const ta=_in('cxCode');if(ta)ta.value=t;}
+function cxInsert(t){
+  const ta=_in('cxCode');if(!ta)return;
+  const a=ta.selectionStart!=null?ta.selectionStart:ta.value.length,b=ta.selectionEnd!=null?ta.selectionEnd:a;
+  ta.value=ta.value.slice(0,a)+t+ta.value.slice(b);
+  try{ta.selectionStart=ta.selectionEnd=a+t.length;}catch(_){}
+  state.cxHtml=ta.value;state.cxOn=true;applyCx();
+}
+function cxClear(){if(!(state.cxHtml||'').trim())return;pushUndo();cxSetCode('');applyCx();
+  toast('HTML을 비웠어요',{action:{label:'되돌리기',fn:histUndo}});}
+function useCxTpl(t){
+  pushUndo();cxSetCode(t.html);state.cxPos=t.pos;state.cxOn=true;applyCx();
+  toast('‘'+t.nm+'’ 예시를 넣었어요 — 코드를 고쳐 보세요',{action:{label:'되돌리기',fn:histUndo}});
+}
+function buildCx(){
+  const box=_in('cxTpl');if(!box)return;box.innerHTML='';
+  CX_TPL.forEach(t=>{
+    const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=t.nm;
+    b.title=CX_POS_NM[t.pos]+' 자리에 넣어요';
+    b.addEventListener('click',()=>useCxTpl(t));box.appendChild(b);
+  });
+}
+function onCxFile(input){
+  const f=input.files&&input.files[0];input.value='';if(!f)return;
+  if(f.size>800000){toast('파일이 너무 커요. 800KB까지 불러올 수 있어요.');return;}
+  const rd=new FileReader();
+  rd.onload=()=>{pushUndo();cxSetCode(String(rd.result||''));state.cxOn=true;applyCx();
+    toast('‘'+f.name+'’ 불러왔어요',{kind:'ok'});};
+  rd.onerror=()=>toast('파일을 읽지 못했어요.');
+  rd.readAsText(f);
+}
+function onCxImg(input){
+  const f=input.files&&input.files[0];input.value='';if(!f)return;
+  const url=URL.createObjectURL(f),img=new Image();
+  img.onload=()=>{
+    URL.revokeObjectURL(url);
+    let w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+    if(!w||!h){toast('이미지를 읽지 못했어요.');return;}
+    const r=Math.min(1,1000/Math.max(w,h));w=Math.max(1,Math.round(w*r));h=Math.max(1,Math.round(h*r));
+    const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);
+    /* 투명 배경이 있을 수 있는 형식(스티커 등)은 PNG로 둔다 */
+    const alpha=/png|webp|gif|svg/i.test(f.type||'');
+    let d;try{d=alpha?cv.toDataURL('image/png'):cv.toDataURL('image/jpeg',0.86);}catch(_){toast('이미지를 사용할 수 없어요.');return;}
+    pushUndo();
+    state.cxImgs=(state.cxImgs||[]).concat([d]);
+    const n=state.cxImgs.length;
+    cxInsert('<img src="{{img'+n+'}}" style="width:'+Math.min(w,320)+'px">');
+  };
+  img.onerror=()=>{URL.revokeObjectURL(url);toast('이미지를 불러오지 못했어요.');};
+  img.src=url;
+}
+function renderCxImgs(){
+  const w=_in('cxImgs'),wrap=_in('cxImgWrap');if(!w||!wrap)return;
+  w.innerHTML='';
+  const L=state.cxImgs||[];let any=false;
+  L.forEach((u,i)=>{
+    if(!u)return;any=true;
+    const b=document.createElement('div');b.className='pchip';b.setAttribute('role','button');b.tabIndex=0;
+    b.title='눌러서 코드의 커서 자리에 넣기';
+    const t=document.createElement('span');t.className='cav';t.style.cssText='border-radius:5px;background:center/cover no-repeat url("'+u+'");';
+    const n=document.createElement('span');n.className='nm';n.textContent='{{img'+(i+1)+'}}';
+    const x=document.createElement('span');x.className='x';x.textContent='×';x.title='이미지 지우기';
+    x.addEventListener('click',e=>{e.stopPropagation();pushUndo();
+      const a=state.cxImgs.slice();a[i]='';while(a.length&&!a[a.length-1])a.pop();state.cxImgs=a;applyCx();});
+    b.appendChild(t);b.appendChild(n);b.appendChild(x);
+    const ins=()=>cxInsert('{{img'+(i+1)+'}}');
+    b.addEventListener('click',ins);
+    b.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();ins();}});
+    w.appendChild(b);
+  });
+  wrap.style.display=any?'block':'none';
+}
+/* 내 HTML — 이름 붙여 저장해 두고 다시 불러오기 */
+const LS_CX='excerpt.cxlib.v1';
+let myCx=loadLS(LS_CX);
+function saveCxLib(){
+  const html=state.cxHtml||'';
+  if(!html.trim()){toast('저장할 HTML이 없어요.');return;}
+  const inp=_in('cxName');
+  const nm=((inp&&inp.value.trim())||('HTML '+(myCx.length+1))).slice(0,20);
+  const it={nm:nm,html:html,pos:state.cxPos,pages:state.cxPages,imgs:(state.cxImgs||[]).slice()};
+  myCx=myCx.filter(x=>x.nm!==nm);myCx.unshift(it);if(myCx.length>20)myCx.pop();
+  let ok=saveLS(LS_CX,myCx);
+  if(!ok&&it.imgs.length){it.imgs=[];ok=saveLS(LS_CX,myCx);if(ok)toast('이미지는 용량이 커서 빼고 저장했어요.');}
+  if(!ok){myCx.shift();toast('저장 공간이 부족해 저장하지 못했어요.');return;}
+  if(inp)inp.value='';
+  renderCxLib();toast('‘'+nm+'’ 저장했어요',{kind:'ok'});
+}
+function useCxLib(it){
+  pushUndo();cxSetCode(it.html||'');
+  state.cxPos=CX_POS_NM[it.pos]?it.pos:'front';
+  state.cxPages=['all','first','last'].indexOf(it.pages)>=0?it.pages:'all';
+  if(Array.isArray(it.imgs)&&it.imgs.length)state.cxImgs=it.imgs.slice();
+  state.cxOn=true;applyCx();
+}
+function renderCxLib(){
+  const list=_in('cxLib');if(!list)return;list.innerHTML='';
+  if(!myCx.length){const e=document.createElement('span');e.className='hint-sm';e.textContent='저장한 HTML이 없어요.';list.appendChild(e);return;}
+  myCx.forEach((it,i)=>{
+    const b=document.createElement('button');b.type='button';b.className='pchip';
+    b.title=(CX_POS_NM[it.pos]||'')+' · 눌러서 불러오기';
+    const n=document.createElement('span');n.className='nm';n.textContent=it.nm;
+    const x=document.createElement('span');x.className='x';x.textContent='×';x.title='지우기';
+    x.addEventListener('click',e=>{e.stopPropagation();myCx.splice(i,1);saveLS(LS_CX,myCx);renderCxLib();
+      toast('‘'+it.nm+'’ 지웠어요',{action:{label:'되돌리기',fn:()=>{myCx.splice(Math.min(i,myCx.length),0,it);saveLS(LS_CX,myCx);renderCxLib();}}});});
+    b.appendChild(n);b.appendChild(x);
+    b.addEventListener('click',()=>useCxLib(it));
+    list.appendChild(b);
+  });
+}
+(function(){
+  const ta=_in('cxCode');if(!ta)return;
+  ta.addEventListener('input',()=>{clearTimeout(ta._t);ta._t=setTimeout(()=>{state.cxHtml=ta.value;applyCx();},280);});
+  ta.addEventListener('blur',()=>{if(ta._t){clearTimeout(ta._t);ta._t=null;if(state.cxHtml!==ta.value){state.cxHtml=ta.value;applyCx();}}});
+  ta.addEventListener('keydown',e=>{
+    if(e.key!=='Tab'||e.shiftKey||e.ctrlKey||e.metaKey||e.altKey)return;
+    e.preventDefault();
+    const a=ta.selectionStart,b=ta.selectionEnd;
+    if(ta.setRangeText)ta.setRangeText('  ',a,b,'end');else ta.value=ta.value.slice(0,a)+'  '+ta.value.slice(b);
+    ta.dispatchEvent(new Event('input'));
+  });
+})();
+
 const LS_DARK='excerpt.dark.v1';
 function setDark(d){document.body.classList.toggle('dark',d);document.getElementById('themeBtn').innerHTML=d?ICON_SUN:ICON_MOON;}
 function toggleDark(){const d=!document.body.classList.contains('dark');setDark(d);try{localStorage.setItem(LS_DARK,d?'1':'0');}catch(_){}}
@@ -3482,7 +3920,7 @@ function copyImg(){
 try{setDark(localStorage.getItem(LS_DARK)==='1');}catch(_){setDark(false);}
 try{if(localStorage.getItem(LS_FOLD)==='1')setFold(true);}catch(_){}
 loadSettings();
-buildSwatches();renderMyBg();renderMyHl();renderMyFc();renderTP();buildBk();restoreUI();applyTheme();loadDraft();applyStyle();render();
+buildSwatches();renderMyBg();renderMyHl();renderMyFc();renderTP();buildBk();buildCx();renderCxLib();restoreUI();applyTheme();loadDraft();applyStyle();render();
 (function(){let t='c-text';try{t=localStorage.getItem(LS_TAB)||t;}catch(_){}showTab(t,true);})();
 updateStyBtn();
 histStart();
