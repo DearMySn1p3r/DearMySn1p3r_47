@@ -4234,6 +4234,86 @@ function h2cFixColors(v){
   }
   return out;
 }
+/* 가는 그라데이션 선(높이나 폭이 몇 px 안 되는 것)은 브라우저에 따라(특히 사파리) 저장 도구가
+   통째로 빠뜨린다 → 저장할 때만 같은 모양의 그림으로 미리 그려 끼워 넣는다 */
+function h2cSplit(s){ const o = []; let d = 0, c = ''; for(const ch of s){ if(ch === '(') d++; else if(ch === ')') d--; if(ch === ',' && !d){ o.push(c.trim()); c = ''; continue; } c += ch; } if(c.trim()) o.push(c.trim()); return o; }
+function h2cParseRgba(str){ const m = /rgba?\(([^)]*)\)/.exec(h2cRgb(str)); if(!m) return null; const p = m[1].split(',').map(parseFloat); return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]; }
+function h2cGradPng(bi, w, h, S){
+  const m = /^linear-gradient\((.*)\)$/i.exec(bi.trim()); if(!m) return null;
+  const args = h2cSplit(m[1]); if(!args.length) return null;
+  let ang = Math.PI, i = 0, a0 = args[0].trim().toLowerCase();
+  const sides = { top:0, right:90, bottom:180, left:270 };
+  if(/^-?[\d.]+(deg|grad|rad|turn)$/.test(a0)){
+    const v = parseFloat(a0);
+    ang = /turn$/.test(a0) ? v * 2 * Math.PI : /grad$/.test(a0) ? v * Math.PI / 200 : /rad$/.test(a0) ? v : v * Math.PI / 180; i = 1;
+  } else if(/^to /.test(a0)){
+    const ws = a0.slice(3).split(/\s+/);
+    if(ws.length === 1 && sides[ws[0]] != null) ang = sides[ws[0]] * Math.PI / 180;
+    else { const dx = ws.indexOf('right') >= 0 ? 1 : -1, dy = ws.indexOf('bottom') >= 0 ? 1 : -1; ang = Math.atan2(dx * h, -dy * w); }
+    i = 1;
+  }
+  const stops = [];
+  for(; i < args.length; i++){
+    const mm = /^((?:rgba?|hsla?)\([^)]*\)|#[0-9a-f]+|[a-z]+)\s*(.*)$/i.exec(args[i]); if(!mm) return null;
+    const col = h2cParseRgba(mm[1]); if(!col) return null;
+    const ps = mm[2].trim() ? mm[2].trim().split(/\s+/) : [null];
+    ps.forEach(p => stops.push({ col, p }));
+  }
+  if(stops.length < 2) return null;
+  const sn = Math.sin(ang), cs = Math.cos(ang), L = Math.abs(w * sn) + Math.abs(h * cs) || 1;
+  stops.forEach(s => { if(s.p == null) return; s.t = /%$/.test(s.p) ? parseFloat(s.p) / 100 : /px$/.test(s.p) ? parseFloat(s.p) / L : NaN; if(isNaN(s.t)) s.t = null; });
+  if(stops[0].t == null) stops[0].t = 0;
+  if(stops[stops.length - 1].t == null) stops[stops.length - 1].t = 1;
+  for(let k = 1; k < stops.length; k++) if(stops[k].t != null && stops[k].t < stops[k - 1].t) stops[k].t = stops[k - 1].t;
+  for(let k = 1; k < stops.length; k++){
+    if(stops[k].t != null) continue;
+    let e = k; while(stops[e].t == null) e++;
+    const a = stops[k - 1].t, b = stops[e].t, n = e - k + 1;
+    for(let q = k; q < e; q++) stops[q].t = a + (b - a) * (q - k + 1) / n;
+  }
+  const W = Math.max(1, Math.round(w * S)), H = Math.max(1, Math.round(h * S));
+  if(W * H > 4e6) return null;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const x = cv.getContext('2d'); const img = x.createImageData(W, H), d = img.data;
+  const pm = c => [c[0] * c[3], c[1] * c[3], c[2] * c[3], c[3]];
+  const P = stops.map(s => ({ t:s.t, c:pm(s.col) }));
+  for(let py = 0; py < H; py++){
+    for(let px = 0; px < W; px++){
+      const X = (px + .5) / S - w / 2, Y = (py + .5) / S - h / 2;
+      const t = (X * sn - Y * cs) / L + .5;
+      let c;
+      if(t <= P[0].t) c = P[0].c;
+      else if(t >= P[P.length - 1].t) c = P[P.length - 1].c;
+      else { let k = 1; while(k < P.length - 1 && t > P[k].t) k++;
+        const A = P[k - 1], B = P[k], f = B.t > A.t ? (t - A.t) / (B.t - A.t) : 1;
+        c = [0,1,2,3].map(z => A.c[z] + (B.c[z] - A.c[z]) * f); }
+      const o = (py * W + px) * 4, al = c[3];
+      d[o] = al ? c[0] / al : 0; d[o + 1] = al ? c[1] / al : 0; d[o + 2] = al ? c[2] / al : 0; d[o + 3] = Math.round(al * 255);
+    }
+  }
+  x.putImageData(img, 0, 0);
+  try{ return cv.toDataURL('image/png'); }catch(e){ return null; }
+}
+function h2cThinGrads(cdoc, croot){
+  const cwin = cdoc.defaultView || window;
+  [].slice.call(croot.querySelectorAll('*')).forEach(el => {
+    let cs; try{ cs = cwin.getComputedStyle(el); }catch(e){ return; }
+    const bi = cs.backgroundImage;
+    if(!bi || !/^linear-gradient\(/i.test(bi.trim()) || h2cSplit(bi).length !== 1) return;
+    if(el.children.length || (el.textContent || '').trim()) return;
+    const bs = (cs.backgroundSize || 'auto').trim();
+    if(!/^(auto|auto auto|100% 100%|100%|cover)$/.test(bs)) return;
+    const r = el.getBoundingClientRect();
+    if(!(r.width > 0 && r.height > 0) || Math.min(r.width, r.height) > 6) return;
+    const url = h2cGradPng(bi, r.width, r.height, 6); if(!url) return;
+    const im = cdoc.createElement('img');
+    im.src = url; im.alt = '';
+    im.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;display:block;max-width:none;border:0;margin:0;padding:0;';
+    if(cs.position === 'static') el.style.setProperty('position', 'relative', 'important');
+    el.style.setProperty('background-image', 'none', 'important');
+    el.appendChild(im);
+  });
+}
 function h2cPrep(rootEl){
   const recs = [], doc = rootEl && rootEl.ownerDocument;
   const win = doc && doc.defaultView;
@@ -4295,6 +4375,7 @@ function h2cPrep(rootEl){
             }
           }
         });
+        if(croot) h2cThinGrads(cdoc, croot);
       }catch(e){}
     },
     done(){ try{ rootEl && rootEl.removeAttribute('data-h2c-root'); }catch(e){} recs.forEach(r => { try{ r.el.removeAttribute('data-h2c'); }catch(e){} }); }
